@@ -164,6 +164,6 @@ else:
 
 # Pie de página
 st.markdown("---")
-st.caption("Visor Provisional DJ 2025 ICA - Desarrollado para gestión remota.")
-st.caption("Colaboradores: Octavio")
+st.caption("Visor Provisional de DJ 2025 ICA - Desarrollado para gestión remota.")
+st.caption("Colaborador: Octavio")
 
