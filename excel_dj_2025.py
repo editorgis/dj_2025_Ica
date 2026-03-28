@@ -20,7 +20,7 @@ columnas_especificas = {
     'Instalaciones': ['CODIGO', 'COD_PRED', 'Descripcion', 'MES_CONS', 'ANO_CONS', 'ANNO_ANTIG', 'CANTIDAD', 'VAL_INSTALAC', 'UNI_MEDIDA']
 }
 
-st.markdown("<h1 style='text-align: center; color: #1E3A8A;'>🏛️ SISTEMA DE CONSULTA CATASTRAL 2025</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center; color: #1E3A8A;'>🏛️ SISTEMA DE CONSULTA CATASTRAL 2025 - ICA</h1>", unsafe_allow_html=True)
 
 # --- 4. FUNCIÓN DE CARGA ROBUSTA CON GDOWN ---
 @st.cache_data(show_spinner="⏳ Sincronizando con Google Drive (34MB)...")
