@@ -6,7 +6,7 @@ import io
 
 # --- 1. CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(
-    page_title="Sistema Catastro ICA 2025",
+    page_title="Sistema de Consulta Declaracion Jurada 2025 ICA",
     page_icon="🏛️",
     layout="wide"
 )
@@ -98,7 +98,7 @@ if archivo_subido:
                     
                     # Encabezado
                     pdf.set_font("Helvetica", 'B', 16)
-                    pdf.cell(0, 10, "REPORTE DE CATASTRO - ICA 2025", ln=True, align='C')
+                    pdf.cell(0, 10, "REPORTE DE CONSULTA DJ 2025 - ICA", ln=True, align='C')
                     pdf.set_font("Helvetica", '', 10)
                     pdf.cell(0, 8, f"Consulta realizada por {columna_filtro}: {valor_busqueda}", ln=True, align='C')
                     pdf.cell(0, 5, f"Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M')}", ln=True, align='C')
