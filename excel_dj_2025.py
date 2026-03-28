@@ -52,7 +52,7 @@ else:
 # --- 5. BUSCADOR ---
 c1, c2 = st.columns(2)
 with c1:
-    modo = st.radio("**Criterio:**", ["1. Por CODIGO", "2. Por COD_PRED"])
+    modo = st.radio("**Criterio:**", ["1. Por CODIGO CONTRIBUYENTE", "2. Por COD_PRED"])
 col_filtro = 'CODIGO' if "1" in modo else 'COD_PRED'
 with c2:
     valor = st.text_input(f"Ingrese {col_filtro}:").strip().lstrip('0')
