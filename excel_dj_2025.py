@@ -9,9 +9,8 @@ import os
 # --- 1. CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="Sistema Catastro ICA 2025", page_icon="🏛️", layout="wide")
 
-# --- 2. CONFIGURACIÓN DE GOOGLE DRIVE ---
-# Reemplaza esto con el ID de tu archivo de la imagen que compartiste
-ID_ARCHIVO_DRIVE = "TU_ID_AQUI" 
+# --- 2. ID DE TU ARCHIVO DE DRIVE ---
+ID_ARCHIVO_DRIVE = "132VqpRNmOG8zQ1g-2xmNBI4OC0GFEkRk" 
 
 # --- 3. DICCIONARIO DE COLUMNAS ---
 columnas_especificas = {
@@ -23,16 +22,17 @@ columnas_especificas = {
 
 st.markdown("<h1 style='text-align: center; color: #1E3A8A;'>🏛️ SISTEMA DE CONSULTA CATASTRAL 2025</h1>", unsafe_allow_html=True)
 
-# --- 4. FUNCIÓN PARA CARGAR DESDE DRIVE USANDO GDOWN ---
-@st.cache_data(show_spinner="⏳ Descargando base de datos desde Google Drive (34MB)...")
-def cargar_datos_gdown(file_id):
+# --- 4. FUNCIÓN DE CARGA ROBUSTA CON GDOWN ---
+@st.cache_data(show_spinner="⏳ Sincronizando con Google Drive (34MB)...")
+def cargar_datos_desde_drive(file_id):
     try:
         url = f'https://drive.google.com/uc?id={file_id}'
-        output = "database.xlsx"
+        output = "archivo_local.xlsx"
         
-        # gdown descarga el archivo real saltándose avisos de virus
+        # Descarga forzada del archivo real
         gdown.download(url, output, quiet=False, fuzzy=True)
         
+        # Lectura del archivo descargado
         excel_reader = pd.ExcelFile(output, engine='openpyxl')
         nombres_hojas = excel_reader.sheet_names
         datos = {hoja: pd.read_excel(output, sheet_name=hoja, engine='openpyxl', dtype=str).fillna("") for hoja in nombres_hojas}
@@ -40,68 +40,75 @@ def cargar_datos_gdown(file_id):
     except Exception as e:
         return None, str(e)
 
-# Ejecutar carga automática
-archivo_excel, resultado_carga = cargar_datos_gdown(ID_ARCHIVO_DRIVE)
+# Ejecución
+archivo_excel, nombres_hojas = cargar_datos_desde_drive(ID_ARCHIVO_DRIVE)
 
 if archivo_excel is None:
-    st.error(f"❌ Error al conectar: {resultado_carga}")
+    st.error(f"❌ Error crítico: {nombres_hojas}")
     st.stop()
 else:
-    st.sidebar.success("✅ Conectado a Google Drive")
+    st.sidebar.success("✅ Base de datos conectada")
 
-# --- 5. INTERFAZ DE BÚSQUEDA ---
-col_1, col_2 = st.columns(2)
-with col_1:
-    opcion = st.radio("**Criterio:**", ["1. Por CODIGO", "2. Por COD_PRED"])
-col_filtro = 'CODIGO' if "1" in opcion else 'COD_PRED'
-with col_2:
+# --- 5. BUSCADOR ---
+c1, c2 = st.columns(2)
+with c1:
+    modo = st.radio("**Criterio:**", ["1. Por CODIGO", "2. Por COD_PRED"])
+col_filtro = 'CODIGO' if "1" in modo else 'COD_PRED'
+with c2:
     valor = st.text_input(f"Ingrese {col_filtro}:").strip().lstrip('0')
 
 if valor:
     resultados = {}
     total = 0
-    for nombre in archivo_excel.keys():
-        df = archivo_excel[nombre]
+    for h in nombres_hojas:
+        df = archivo_excel[h]
         col_id = next((c for c in df.columns if c.upper() == col_filtro.upper()), None)
         if col_id:
             mask = df[col_id].str.strip().str.lstrip('0') == valor
-            df_res = df[mask]
-            if not df_res.empty:
-                cols = [c for c in columnas_especificas.get(nombre, df_res.columns) if c in df_res.columns]
-                resultados[nombre] = df_res[cols]
-                total += len(df_res)
+            res = df[mask]
+            if not res.empty:
+                cols = [c for c in columnas_especificas.get(h, res.columns) if c in res.columns]
+                resultados[h] = res[cols]
+                total += len(res)
 
     if total > 0:
-        st.success(f"🔎 Encontrados: {total}")
-        for n, d in resultados.items():
-            with st.expander(f"📋 Pestaña: {n}", expanded=True):
+        st.success(f"🔎 Registros encontrados: {total}")
+        for h, d in resultados.items():
+            with st.expander(f"📋 Pestaña: {h}", expanded=True):
                 st.dataframe(d, use_container_width=True)
 
-        # --- 6. PDF CORREGIDO ---
-        if st.button("📄 Generar Reporte PDF"):
+        # --- 6. REPORTE PDF SEGURO ---
+        if st.button("📄 Descargar Reporte PDF"):
             try:
                 pdf = FPDF(orientation='L', unit='mm', format='A4')
                 pdf.add_page()
                 pdf.set_font("Helvetica", 'B', 16)
                 pdf.cell(0, 10, "REPORTE CATASTRAL 2025", ln=True, align='C')
-                pdf.ln(10)
+                pdf.ln(5)
 
-                for hoja, df_p in resultados.items():
+                for h, data in resultados.items():
                     pdf.set_font("Helvetica", 'B', 10)
-                    pdf.set_fill_color(30, 58, 138)
-                    pdf.set_text_color(255, 255, 255)
-                    pdf.cell(0, 8, f" SECCIÓN: {hoja.upper()}", ln=True, fill=True, border=1)
-                    pdf.set_text_color(0, 0, 0)
-                    pdf.set_font("Helvetica", size=6)
+                    pdf.set_fill_color(230, 230, 230)
+                    pdf.cell(0, 8, f" SECCIÓN: {h.upper()}", ln=True, fill=True, border=1)
                     
-                    for _, fila in df_p.iterrows():
-                        pdf.multi_cell(0, 5, str(fila.to_dict()), border=1)
-                        pdf.ln(2)
-
-                # FIX bytearray: Convertimos a bytes puros
-                pdf_bytes = bytes(pdf.output())
-                st.download_button(label="⬇️ Descargar PDF", data=pdf_bytes, file_name=f"Reporte_{valor}.pdf", mime="application/pdf")
+                    pdf.set_font("Helvetica", size=7)
+                    for _, fila in data.iterrows():
+                        info = " | ".join([f"{k}: {v}" for k, v in fila.to_dict().items()])
+                        pdf.multi_cell(0, 5, info, border=1)
+                        pdf.ln(1)
+                
+                # Conversión segura a bytes para la nube
+                pdf_output = pdf.output(dest='S')
+                if isinstance(pdf_output, str):
+                    pdf_output = pdf_output.encode('latin-1')
+                
+                st.download_button(
+                    label="⬇️ Descargar Archivo PDF",
+                    data=pdf_output,
+                    file_name=f"Reporte_{valor}.pdf",
+                    mime="application/pdf"
+                )
             except Exception as e:
-                st.error(f"Error en PDF: {e}")
+                st.error(f"Error PDF: {e}")
     else:
-        st.warning("No hay resultados.")
+        st.warning("No se hallaron coincidencias.")
