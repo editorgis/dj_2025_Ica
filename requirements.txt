@@ -2,6 +2,4 @@ streamlit
 pandas
 openpyxl
 fpdf2
-altair==4.2.2
-requests
 gdown
