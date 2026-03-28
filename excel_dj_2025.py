@@ -164,4 +164,4 @@ else:
 
 # Pie de página
 st.markdown("---")
-st.caption("Visor Catastral ICA 2025 - Desarrollado para gestión remota.")
+st.caption("Visor Provisional Catastral ICA - Desarrollado para gestión remota.")
