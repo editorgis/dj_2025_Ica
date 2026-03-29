@@ -12,20 +12,20 @@ st.set_page_config(page_title="Sistema de Consulta Declaracion Jurada 2025 - ICA
 CLAVE_SISTEMA = "CAT_2025" 
 ID_ARCHIVO_DRIVE = "132VqpRNmOG8zQ1g-2xmNBI4OC0GFEkRk" 
 
-# Lógica de autenticación simple
+# --- LÓGICA DE ACCESO (PROTECCIÓN INICIAL) ---
 if 'autenticado' not in st.session_state:
     st.session_state['autenticado'] = False
 
 if not st.session_state['autenticado']:
-    st.title("🔐 Acceso al Sistema")
+    st.markdown("<h1 style='text-align: center; color: #1E3A8A;'>🏛️ ACCESO RESTRINGIDO</h1>", unsafe_allow_html=True)
     password = st.text_input("Ingrese la clave del sistema:", type="password")
-    if st.button("Ingresar"):
+    if st.button("Ingresar al Sistema"):
         if password == CLAVE_SISTEMA:
             st.session_state['autenticado'] = True
             st.rerun()
         else:
             st.error("❌ Clave incorrecta")
-    st.stop()
+    st.stop() # Detiene la ejecución aquí hasta que la clave sea correcta
 
 # --- 3. DICCIONARIO DE COLUMNAS (FILTROS) ---
 columnas_especificas = {
@@ -61,10 +61,9 @@ if 'base_datos' not in st.session_state:
 archivo_excel = st.session_state.get('base_datos')
 nombres_hojas = st.session_state.get('hojas')
 
-# --- 6. INTERFAZ VISUAL (TU ESTRUCTURA ORIGINAL INTACTA) ---
+# --- 6. INTERFAZ VISUAL (TU ESTRUCTURA ORIGINAL) ---
 st.markdown("<h1 style='text-align: center; color: #1E3A8A;'>🏛️ SISTEMA DE CONSULTA DECLARACIÓN JURADA 2025 - ICA</h1>", unsafe_allow_html=True)
 
-# Indicador y Salida alineados
 col_status, col_espacio, col_logout = st.columns([2, 5, 1])
 with col_status:
     if archivo_excel is not None:
