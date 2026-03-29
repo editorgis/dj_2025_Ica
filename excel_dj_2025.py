@@ -3,6 +3,7 @@ import pandas as pd
 from fpdf import FPDF
 import gdown
 import os
+from datetime import datetime
 
 # --- 1. CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="Sistema de Consulta Declaracion Jurada 2025 - ICA", page_icon="🏛️", layout="wide")
@@ -22,15 +23,12 @@ st.markdown("<h1 style='text-align: center; color: #1E3A8A;'>🏛️ SISTEMA DE 
 st.write("---")
 
 # --- 4. FUNCIÓN DE CARGA DESDE DRIVE ---
-@st.cache_data(show_spinner="⏳ Sincronizando con Google Drive (34MB)...")
+@st.cache_data(show_spinner="⏳ Sincronizando con Google Drive...")
 def cargar_datos_desde_drive(file_id):
     try:
         url = f'https://drive.google.com/uc?id={file_id}'
         output = "archivo_local.xlsx"
-        
-        # Descarga el archivo usando gdown (Requiere permisos de lectura activados en Drive)
         gdown.download(url, output, quiet=False, fuzzy=True)
-        
         excel_reader = pd.ExcelFile(output, engine='openpyxl')
         nombres_hojas = excel_reader.sheet_names
         datos = {hoja: pd.read_excel(output, sheet_name=hoja, engine='openpyxl', dtype=str).fillna("") for hoja in nombres_hojas}
@@ -74,55 +72,67 @@ if valor:
             with st.expander(f"📋 Pestaña: {h}", expanded=True):
                 st.dataframe(d, use_container_width=True)
 
-        # --- 6. REPORTE PDF PROFESIONAL (TABLAS ALINEADAS) ---
-        if st.button("📄 Generar Reporte PDF"):
+        # --- 6. REPORTE PDF MEJORADO ---
+        if st.button("📄 Generar Reporte PDF Profesional"):
             try:
-                # Orientación Landscape (L) para que las tablas quepan mejor
                 pdf = FPDF(orientation='L', unit='mm', format='A4')
                 pdf.add_page()
                 
-                # Título
+                # Encabezado
                 pdf.set_font("Helvetica", 'B', 16)
                 pdf.cell(0, 10, "REPORTE DECLARACION JURADA 2025 - ICA", ln=True, align='C')
-                pdf.set_font("Helvetica", size=10)
-                pdf.cell(0, 7, f"Consulta: {col_filtro} {valor}", ln=True, align='C')
+                pdf.set_font("Helvetica", size=9)
+                fecha_actual = datetime.now().strftime("%d/%m/%Y %H:%M")
+                pdf.cell(0, 5, f"Consulta realizada por {col_filtro}: {valor} | Fecha: {fecha_actual}", ln=True, align='C')
                 pdf.ln(5)
 
                 for h, data in resultados.items():
-                    # Título de Sección con fondo azul
+                    # Título de Sección
                     pdf.set_font("Helvetica", 'B', 11)
                     pdf.set_fill_color(30, 58, 138) 
                     pdf.set_text_color(255, 255, 255)
                     pdf.cell(0, 8, f" SECCIÓN: {h.upper()}", ln=True, fill=True, border=1)
-                    
-                    # Configuración de Columnas
                     pdf.set_text_color(0, 0, 0)
-                    pdf.set_font("Helvetica", 'B', 7)
-                    columnas = data.columns.tolist()
-                    ancho_col = 277 / len(columnas) # Reparte el ancho de la hoja A4 (277mm útiles)
+                    
+                    # Lógica de Ancho de Columnas Dinámico
+                    pdf.set_font("Helvetica", 'B', 6)
+                    cols = data.columns.tolist()
+                    ancho_total = 277 # mm disponibles en A4 horizontal
+                    
+                    # Asignamos más espacio a columnas con mucho texto (como Nombres o Direcciones)
+                    anchos = []
+                    for c in cols:
+                        if c.upper() in ['NOMBRE', 'DIRECCIÓN FISCAL', 'VIA', 'JUNTA', 'DESCRIPCION']:
+                            anchos.append(ancho_total * 0.25 if len(cols) < 10 else ancho_total * 0.15)
+                        else:
+                            # Reparto equitativo del resto
+                            anchos.append((ancho_total * 0.5) / (len(cols) - 1) if len(cols) > 1 else ancho_total)
+                    
+                    # Ajuste proporcional para no pasarse de 277mm
+                    factor_ajuste = ancho_total / sum(anchos)
+                    anchos = [a * factor_ajuste for a in anchos]
 
-                    # Dibujar Cabeceras de Tabla
-                    pdf.set_fill_color(240, 240, 240)
-                    for col in columnas:
-                        pdf.cell(ancho_col, 6, str(col), border=1, align='C', fill=True)
+                    # Dibujar Cabeceras
+                    pdf.set_fill_color(230, 230, 230)
+                    for i, col in enumerate(cols):
+                        pdf.cell(anchos[i], 6, str(col)[:12], border=1, align='C', fill=True)
                     pdf.ln()
 
-                    # Dibujar Filas
-                    pdf.set_font("Helvetica", size=6)
+                    # Dibujar Filas con fuente minificada para que quepa todo
+                    pdf.set_font("Helvetica", size=5.5)
                     for _, fila in data.iterrows():
-                        for col in columnas:
-                            # Recortamos texto largo para que no rompa la celda
-                            contenido = str(fila[col])[:20] 
-                            pdf.cell(ancho_col, 5, contenido, border=1, align='C')
+                        for i, col in enumerate(cols):
+                            # Truncar texto para evitar superposición
+                            contenido = str(fila[col])[:25] 
+                            pdf.cell(anchos[i], 5, contenido, border=1, align='C')
                         pdf.ln()
-                    pdf.ln(5)
+                    pdf.ln(4)
 
-                # Solución para el error de bytearray en la nube
                 pdf_output = pdf.output(dest='S')
                 pdf_bytes = pdf_output.encode('latin-1') if isinstance(pdf_output, str) else bytes(pdf_output)
 
                 st.download_button(
-                    label="⬇️ Descargar Reporte PDF Ordenado",
+                    label="⬇️ Descargar Reporte PDF Optimizado",
                     data=pdf_bytes,
                     file_name=f"Reporte_{valor}.pdf",
                     mime="application/pdf"
