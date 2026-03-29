@@ -11,7 +11,7 @@ st.set_page_config(page_title="Sistema de Consulta Declaracion Jurada 2025 - ICA
 # --- 2. ID DE TU ARCHIVO DE DRIVE ---
 ID_ARCHIVO_DRIVE = "132VqpRNmOG8zQ1g-2xmNBI4OC0GFEkRk" 
 
-# --- 3. DICCIONARIO DE COLUMNAS (FILTROS) ---
+# --- 3. DICCIONARIO DE COLUMNAS ---
 columnas_especificas = {
     'Contribuyente': ['CODIGO', 'Nombre', 'Dirección Fiscal', 'Junta', 'Dni', 'Correo'],
     'Predios': ['CODIGO', 'COD_PRED', 'TipoPredio', 'Vía', 'Junta', 'NUM_MANZ', 'NUM_LOTE', 'SUB_LOTE', 'NUM_CALL', 'NUM_DEPA', 'Condicion Propieda', 'Descripcion Uso', 'NUM_PISOS', 'NUM_CONDO', 'AREA_TERRENO', 'AREA_COMUN', 'PORCEN_PROPIEDAD'],
@@ -19,10 +19,9 @@ columnas_especificas = {
     'Instalaciones': ['CODIGO', 'COD_PRED', 'Descripcion', 'MES_CONS', 'ANO_CONS', 'ANNO_ANTIG', 'CANTIDAD', 'VAL_INSTALAC', 'UNI_MEDIDA']
 }
 
-st.markdown("<h1 style='text-align: center; color: #1E3A8A;'>🏛️ SISTEMA DE CONSULTA DECLARACION JURADA 2025 - ICA</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center; color: #1E3A8A;'>🏛️ SISTEMA DE CONSULTA CATASTRAL 2025</h1>", unsafe_allow_html=True)
 st.write("---")
 
-# --- 4. FUNCIÓN DE CARGA DESDE DRIVE ---
 @st.cache_data(show_spinner="⏳ Sincronizando con Google Drive...")
 def cargar_datos_desde_drive(file_id):
     try:
@@ -41,8 +40,6 @@ archivo_excel, nombres_hojas = cargar_datos_desde_drive(ID_ARCHIVO_DRIVE)
 if archivo_excel is None:
     st.error(f"❌ Error crítico: {nombres_hojas}")
     st.stop()
-else:
-    st.sidebar.success("✅ Base de datos conectada")
 
 # --- 5. BUSCADOR ---
 c1, c2 = st.columns(2)
@@ -72,72 +69,67 @@ if valor:
             with st.expander(f"📋 Pestaña: {h}", expanded=True):
                 st.dataframe(d, use_container_width=True)
 
-        # --- 6. REPORTE PDF MEJORADO ---
+        # --- 6. REPORTE PDF REESTRUCTURADO (FORMATO FICHA) ---
         if st.button("📄 Generar Reporte PDF Profesional"):
             try:
-                pdf = FPDF(orientation='L', unit='mm', format='A4')
+                # Usamos vertical (P) porque el formato ficha se lee mejor así
+                pdf = FPDF(orientation='P', unit='mm', format='A4')
                 pdf.add_page()
                 
                 # Encabezado
                 pdf.set_font("Helvetica", 'B', 16)
-                pdf.cell(0, 10, "REPORTE DECLARACION JURADA 2025 - ICA", ln=True, align='C')
-                pdf.set_font("Helvetica", size=9)
-                fecha_actual = datetime.now().strftime("%d/%m/%Y %H:%M")
-                pdf.cell(0, 5, f"Consulta realizada por {col_filtro}: {valor} | Fecha: {fecha_actual}", ln=True, align='C')
-                pdf.ln(5)
+                pdf.set_text_color(30, 58, 138)
+                pdf.cell(0, 10, "REPORTE DE DECLARACIÓN JURADA 2025", ln=True, align='C')
+                pdf.set_font("Helvetica", size=10)
+                pdf.set_text_color(100, 100, 100)
+                fecha = datetime.now().strftime("%d/%m/%Y %H:%M")
+                pdf.cell(0, 5, f"ICA, PERÚ | Generado el: {fecha}", ln=True, align='C')
+                pdf.cell(0, 5, f"Búsqueda por {col_filtro}: {valor}", ln=True, align='C')
+                pdf.ln(10)
 
                 for h, data in resultados.items():
                     # Título de Sección
-                    pdf.set_font("Helvetica", 'B', 11)
+                    pdf.set_font("Helvetica", 'B', 12)
                     pdf.set_fill_color(30, 58, 138) 
                     pdf.set_text_color(255, 255, 255)
-                    pdf.cell(0, 8, f" SECCIÓN: {h.upper()}", ln=True, fill=True, border=1)
+                    pdf.cell(0, 9, f"  {h.upper()}", ln=True, fill=True)
+                    pdf.ln(2)
+                    
                     pdf.set_text_color(0, 0, 0)
                     
-                    # Lógica de Ancho de Columnas Dinámico
-                    pdf.set_font("Helvetica", 'B', 6)
-                    cols = data.columns.tolist()
-                    ancho_total = 277 # mm disponibles en A4 horizontal
-                    
-                    # Asignamos más espacio a columnas con mucho texto (como Nombres o Direcciones)
-                    anchos = []
-                    for c in cols:
-                        if c.upper() in ['NOMBRE', 'DIRECCIÓN FISCAL', 'VIA', 'JUNTA', 'DESCRIPCION']:
-                            anchos.append(ancho_total * 0.25 if len(cols) < 10 else ancho_total * 0.15)
-                        else:
-                            # Reparto equitativo del resto
-                            anchos.append((ancho_total * 0.5) / (len(cols) - 1) if len(cols) > 1 else ancho_total)
-                    
-                    # Ajuste proporcional para no pasarse de 277mm
-                    factor_ajuste = ancho_total / sum(anchos)
-                    anchos = [a * factor_ajuste for a in anchos]
-
-                    # Dibujar Cabeceras
-                    pdf.set_fill_color(230, 230, 230)
-                    for i, col in enumerate(cols):
-                        pdf.cell(anchos[i], 6, str(col)[:12], border=1, align='C', fill=True)
-                    pdf.ln()
-
-                    # Dibujar Filas con fuente minificada para que quepa todo
-                    pdf.set_font("Helvetica", size=5.5)
-                    for _, fila in data.iterrows():
-                        for i, col in enumerate(cols):
-                            # Truncar texto para evitar superposición
-                            contenido = str(fila[col])[:25] 
-                            pdf.cell(anchos[i], 5, contenido, border=1, align='C')
-                        pdf.ln()
-                    pdf.ln(4)
+                    # Formato Ficha: Cada fila del Excel es un bloque
+                    for i, (_, fila) in enumerate(data.iterrows()):
+                        pdf.set_font("Helvetica", 'B', 9)
+                        pdf.set_fill_color(245, 245, 245)
+                        pdf.cell(0, 7, f" Registro N° {i+1}", ln=True, fill=True, border='B')
+                        
+                        # Imprimir cada campo en dos columnas (Nombre del campo : Valor)
+                        pdf.set_font("Helvetica", size=8)
+                        
+                        items = fila.to_dict().items()
+                        # Dividimos los items para que no sea una lista infinita hacia abajo
+                        for k, v in items:
+                            pdf.set_font("Helvetica", 'B', 8)
+                            pdf.cell(45, 6, f"{k}:", border=0)
+                            pdf.set_font("Helvetica", size=8)
+                            pdf.cell(0, 6, f"{v}", ln=True, border=0)
+                        
+                        pdf.ln(4) # Espacio entre fichas
+                        
+                        # Si queda poco espacio en la hoja, saltamos de página
+                        if pdf.get_y() > 250:
+                            pdf.add_page()
 
                 pdf_output = pdf.output(dest='S')
-                pdf_bytes = pdf_output.encode('latin-1') if isinstance(pdf_output, str) else bytes(pdf_output)
+                pdf_bytes = pdf_output.encode('latin-1', 'replace') if isinstance(pdf_output, str) else bytes(pdf_output)
 
                 st.download_button(
-                    label="⬇️ Descargar Reporte PDF Optimizado",
+                    label="⬇️ Descargar Reporte PDF Legible",
                     data=pdf_bytes,
-                    file_name=f"Reporte_{valor}.pdf",
+                    file_name=f"Reporte_Catastro_{valor}.pdf",
                     mime="application/pdf"
                 )
             except Exception as e:
-                st.error(f"Error generando el PDF: {e}")
+                st.error(f"Error en PDF: {e}")
     else:
-        st.warning("No se encontraron resultados para esa búsqueda.")
+        st.warning("No se hallaron resultados.")
