@@ -9,7 +9,7 @@ from datetime import datetime
 st.set_page_config(page_title="Sistema de Consulta Declaracion Jurada 2025 - ICA", page_icon="🏛️", layout="wide")
 
 # --- 2. SEGURIDAD Y CONFIGURACIÓN ---
-CLAVE_CORRECTA = "admin123"  # <--- CAMBIA TU CLAVE AQUÍ
+CLAVE_CORRECTA = "octavio"  # <--- CAMBIA TU CLAVE AQUÍ
 ID_ARCHIVO_DRIVE = "132VqpRNmOG8zQ1g-2xmNBI4OC0GFEkRk" 
 
 # Inicializar estado de login
@@ -39,7 +39,7 @@ def cargar_datos_desde_drive(file_id):
         return None, str(e)
 
 # --- INTERFAZ DE LOGIN ---
-st.markdown("<h1 style='text-align: center; color: #1E3A8A;'>🏛️ SISTEMA DE CONSULTA CATASTRAL 2025</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center; color: #1E3A8A;'>🏛️ SISTEMA DE CONSULTA DECLARACION JURADA 2025 - ICA</h1>", unsafe_allow_html=True)
 
 if not st.session_state['autenticado']:
     col1, col2, col3 = st.columns([1,1,1])
