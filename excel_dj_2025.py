@@ -5,7 +5,7 @@ import gdown
 import os
 
 # --- 1. CONFIGURACIÓN DE PÁGINA ---
-st.set_page_config(page_title="Sistema Catastro ICA 2025", page_icon="🏛️", layout="wide")
+st.set_page_config(page_title="Sistema de Consulta Declaracion Jurada 2025 - ICA", page_icon="🏛️", layout="wide")
 
 # --- 2. ID DE TU ARCHIVO DE DRIVE ---
 ID_ARCHIVO_DRIVE = "132VqpRNmOG8zQ1g-2xmNBI4OC0GFEkRk" 
@@ -49,7 +49,7 @@ else:
 # --- 5. BUSCADOR ---
 c1, c2 = st.columns(2)
 with c1:
-    modo = st.radio("**Seleccione Criterio:**", ["1. Por CODIGO", "2. Por COD_PRED"])
+    modo = st.radio("**Seleccione Criterio:**", ["1. Por COD_CONTRIBUTENTE", "2. Por COD_PREDIO"])
 col_filtro = 'CODIGO' if "1" in modo else 'COD_PRED'
 with c2:
     valor = st.text_input(f"Ingrese {col_filtro}:").strip().lstrip('0')
@@ -83,7 +83,7 @@ if valor:
                 
                 # Título
                 pdf.set_font("Helvetica", 'B', 16)
-                pdf.cell(0, 10, "REPORTE CATASTRAL - ICA 2025", ln=True, align='C')
+                pdf.cell(0, 10, "REPORTE DECLARACION JURADA 2025 - ICA", ln=True, align='C')
                 pdf.set_font("Helvetica", size=10)
                 pdf.cell(0, 7, f"Consulta: {col_filtro} {valor}", ln=True, align='C')
                 pdf.ln(5)
