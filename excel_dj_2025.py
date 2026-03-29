@@ -9,11 +9,11 @@ from datetime import datetime
 st.set_page_config(page_title="Sistema de Consulta Declaracion Jurada 2025 - ICA", page_icon="🏛️", layout="wide")
 
 # --- 2. CONFIGURACIÓN DE ACCESO DESDE SECRETS ---
-# Aquí el código va a la configuración que acabas de guardar en la web
+# El sistema busca automáticamente la clave que guardaste en la web
 CLAVE_SISTEMA = st.secrets["CLAVE_SISTEMA"]
 ID_ARCHIVO_DRIVE = "132VqpRNmOG8zQ1g-2xmNBI4OC0GFEkRk" 
 
-# --- LÓGICA DE ACCESO ---
+# --- LÓGICA DE ACCESO (TU DISEÑO ORIGINAL) ---
 if 'autenticado' not in st.session_state:
     st.session_state['autenticado'] = False
 
@@ -67,7 +67,7 @@ if 'base_datos' not in st.session_state:
 archivo_excel = st.session_state.get('base_datos')
 nombres_hojas = st.session_state.get('hojas')
 
-# --- 6. INTERFAZ VISUAL ---
+# --- 6. INTERFAZ VISUAL (DENTRO DEL SISTEMA) ---
 st.markdown("<h1 style='text-align: center; color: #1E3A8A;'>🏛️ SISTEMA DE CONSULTA DECLARACIÓN JURADA 2025 - ICA</h1>", unsafe_allow_html=True)
 
 col_status, col_espacio, col_logout = st.columns([2, 5, 1])
@@ -109,12 +109,14 @@ if valor:
                 resultados[h] = res[cols]
                 total += len(res)
 
+    # --- RESPUESTA DE BÚSQUEDA ---
     if total > 0:
         st.success(f"🔎 Registros encontrados: {total}")
         for h, d in resultados.items():
             with st.expander(f"📋 Pestaña: {h}", expanded=True):
                 st.dataframe(d, use_container_width=True)
 
+        # --- 8. REPORTE PDF ---
         if st.button("📄 Generar Reporte PDF"):
             try:
                 pdf = FPDF(orientation='L', unit='mm', format='A4')
@@ -127,5 +129,5 @@ if valor:
             except Exception as e:
                 st.error(f"Error en PDF: {e}")
     else:
-        # El aviso que me pediste
+        # Mensaje cuando no se encuentra nada
         st.warning("⚠️ No se tiene registro")
