@@ -19,7 +19,7 @@ columnas_especificas = {
     'Instalaciones': ['CODIGO', 'COD_PRED', 'Descripcion', 'MES_CONS', 'ANO_CONS', 'ANNO_ANTIG', 'CANTIDAD', 'VAL_INSTALAC', 'UNI_MEDIDA']
 }
 
-# --- 4. FUNCIÓN DE CARGA DESDE DRIVE ---
+# --- 4. FUNCIÓN DE CARGA (CON CACHE) ---
 @st.cache_data(show_spinner="⏳ Sincronizando con la Base de Datos...")
 def cargar_datos_desde_drive(file_id):
     try:
@@ -33,26 +33,37 @@ def cargar_datos_desde_drive(file_id):
     except Exception as e:
         return None, str(e)
 
+# --- 5. LÓGICA DE PERSISTENCIA (PARA NO RECARGAR AL EDITAR SCRIPT) ---
+if 'base_datos' not in st.session_state:
+    datos, hojas = cargar_datos_desde_drive(ID_ARCHIVO_DRIVE)
+    if datos is not None:
+        st.session_state['base_datos'] = datos
+        st.session_state['hojas'] = hojas
+    else:
+        st.session_state['error_carga'] = hojas # Guarda el mensaje de error
+
+# Recuperamos los datos de la sesión
+archivo_excel = st.session_state.get('base_datos')
+nombres_hojas = st.session_state.get('hojas')
+
 # TÍTULO PRINCIPAL
 st.markdown("<h1 style='text-align: center; color: #1E3A8A;'>🏛️ SISTEMA DE CONSULTA DECLARACIÓN JURADA 2025 - ICA</h1>", unsafe_allow_html=True)
-
-# EJECUCIÓN DE CARGA
-archivo_excel, nombres_hojas = cargar_datos_desde_drive(ID_ARCHIVO_DRIVE)
 
 # --- INDICADOR DE CONEXIÓN (ARRIBA DE LA LÍNEA, LADO IZQUIERDO) ---
 c_status, c_vacia = st.columns([1, 3])
 with c_status:
     if archivo_excel is not None:
-        st.success("✅ Base de datos conectada") # Aparece siempre arriba a la izquierda
+        st.success("✅ Base de datos conectada") 
     else:
-        st.error(f"❌ Error: {nombres_hojas}")
+        error_msg = st.session_state.get('error_carga', 'Error desconocido')
+        st.error(f"❌ Error: {error_msg}")
 
 st.write("---") # Línea divisoria
 
 if archivo_excel is None:
     st.stop()
 
-# --- 5. BUSCADOR ---
+# --- 6. BUSCADOR ---
 c1, c2 = st.columns(2)
 with c1:
     modo = st.radio("**Seleccione Criterio:**", ["1. Por COD_CONTRIBUTENTE", "2. Por COD_PREDIO"])
@@ -80,7 +91,7 @@ if valor:
             with st.expander(f"📋 Pestaña: {h}", expanded=True):
                 st.dataframe(d, use_container_width=True)
 
-        # --- 6. REPORTE PDF (DISEÑO HORIZONTAL) ---
+        # --- 7. REPORTE PDF (DISEÑO HORIZONTAL OPTIMIZADO) ---
         if st.button("📄 Generar Reporte PDF"):
             try:
                 pdf = FPDF(orientation='L', unit='mm', format='A4')
@@ -113,13 +124,13 @@ if valor:
                     pdf.set_font("Helvetica", size=5.5)
                     for _, fila in data.iterrows():
                         for col in cols:
-                            # Truncamos a 20 caracteres para evitar solapamiento
+                            # Truncamos contenido para evitar solapamiento
                             contenido = str(fila[col])[:20] 
                             pdf.cell(ancho_col, 5, contenido, border=1, align='C')
                         pdf.ln()
                     pdf.ln(4)
 
-                # Corrección del error de descarga (bytearray)
+                # Solución al error de descarga binaria
                 pdf_output = pdf.output(dest='S')
                 pdf_bytes = pdf_output.encode('latin-1') if isinstance(pdf_output, str) else bytes(pdf_output)
 
