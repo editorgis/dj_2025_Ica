@@ -8,11 +8,12 @@ from datetime import datetime
 # --- 1. CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="Sistema de Consulta Declaracion Jurada 2025 - ICA", page_icon="🏛️", layout="wide")
 
-# --- 2. CONFIGURACIÓN DE ACCESO Y DRIVE ---
-CLAVE_SISTEMA = "octavio" 
+# --- 2. CONFIGURACIÓN DE ACCESO DESDE SECRETS ---
+# Aquí el código va a la configuración que acabas de guardar en la web
+CLAVE_SISTEMA = st.secrets["CLAVE_SISTEMA"]
 ID_ARCHIVO_DRIVE = "132VqpRNmOG8zQ1g-2xmNBI4OC0GFEkRk" 
 
-# --- LÓGICA DE ACCESO (TU TÍTULO SIEMPRE ARRIBA) ---
+# --- LÓGICA DE ACCESO ---
 if 'autenticado' not in st.session_state:
     st.session_state['autenticado'] = False
 
@@ -66,7 +67,7 @@ if 'base_datos' not in st.session_state:
 archivo_excel = st.session_state.get('base_datos')
 nombres_hojas = st.session_state.get('hojas')
 
-# --- 6. INTERFAZ VISUAL (DENTRO DEL SISTEMA) ---
+# --- 6. INTERFAZ VISUAL ---
 st.markdown("<h1 style='text-align: center; color: #1E3A8A;'>🏛️ SISTEMA DE CONSULTA DECLARACIÓN JURADA 2025 - ICA</h1>", unsafe_allow_html=True)
 
 col_status, col_espacio, col_logout = st.columns([2, 5, 1])
@@ -114,19 +115,17 @@ if valor:
             with st.expander(f"📋 Pestaña: {h}", expanded=True):
                 st.dataframe(d, use_container_width=True)
 
-        # --- 8. REPORTE PDF ---
         if st.button("📄 Generar Reporte PDF"):
             try:
                 pdf = FPDF(orientation='L', unit='mm', format='A4')
                 pdf.add_page()
                 pdf.set_font("Helvetica", 'B', 16)
                 pdf.cell(0, 10, "REPORTE DECLARACION JURADA 2025 - ICA", ln=True, align='C')
-                # ... lógica de PDF ...
                 pdf_output = pdf.output(dest='S')
                 pdf_bytes = pdf_output.encode('latin-1') if isinstance(pdf_output, str) else bytes(pdf_output)
                 st.download_button(label="⬇️ Descargar Reporte PDF", data=pdf_bytes, file_name=f"Reporte_{valor}.pdf", mime="application/pdf")
             except Exception as e:
                 st.error(f"Error en PDF: {e}")
     else:
-        # AQUÍ ESTÁ LA ACTUALIZACIÓN:
+        # El aviso que me pediste
         st.warning("⚠️ No se tiene registro")
