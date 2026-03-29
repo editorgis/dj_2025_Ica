@@ -9,14 +9,13 @@ from datetime import datetime
 st.set_page_config(page_title="Sistema de Consulta Declaracion Jurada 2025 - ICA", page_icon="🏛️", layout="wide")
 
 # --- 2. CONFIGURACIÓN DE ACCESO Y DRIVE ---
-CLAVE_SISTEMA = "CAT_2025"  # <--- CAMBIA TU CLAVE AQUÍ
+CLAVE_SISTEMA = "CAT_2025"  # <--- TU CLAVE AQUÍ
 ID_ARCHIVO_DRIVE = "132VqpRNmOG8zQ1g-2xmNBI4OC0GFEkRk" 
 
-# Inicializar estado de autenticación
+# Lógica de autenticación (Capa superior)
 if 'autenticado' not in st.session_state:
     st.session_state['autenticado'] = False
 
-# --- 3. INTERFAZ DE LOGIN (CAPA DE SEGURIDAD) ---
 if not st.session_state['autenticado']:
     st.markdown("<h1 style='text-align: center; color: #1E3A8A;'>🏛️ ACCESO RESTRINGIDO</h1>", unsafe_allow_html=True)
     _, col_login, _ = st.columns([1, 1, 1])
@@ -28,9 +27,9 @@ if not st.session_state['autenticado']:
                 st.rerun()
             else:
                 st.error("❌ Clave incorrecta")
-    st.stop() # Bloquea todo lo demás hasta que la clave sea correcta
+    st.stop()
 
-# --- 4. TU DICCIONARIO DE COLUMNAS (SIN CAMBIOS) ---
+# --- 3. DICCIONARIO DE COLUMNAS (FILTROS) ---
 columnas_especificas = {
     'Contribuyente': ['CODIGO', 'Nombre', 'Dirección Fiscal', 'Junta', 'Dni', 'Correo'],
     'Predios': ['CODIGO', 'COD_PRED', 'TipoPredio', 'Vía', 'Junta', 'NUM_MANZ', 'NUM_LOTE', 'SUB_LOTE', 'NUM_CALL', 'NUM_DEPA', 'Condicion Propieda', 'Descripcion Uso', 'NUM_PISOS', 'NUM_CONDO', 'AREA_TERRENO', 'AREA_COMUN', 'PORCEN_PROPIEDAD'],
@@ -38,7 +37,7 @@ columnas_especificas = {
     'Instalaciones': ['CODIGO', 'COD_PRED', 'Descripcion', 'MES_CONS', 'ANO_CONS', 'ANNO_ANTIG', 'CANTIDAD', 'VAL_INSTALAC', 'UNI_MEDIDA']
 }
 
-# --- 5. TU FUNCIÓN DE CARGA (SIN CAMBIOS) ---
+# --- 4. FUNCIÓN DE CARGA (CON CACHE) ---
 @st.cache_data(show_spinner="⏳ Sincronizando con la Base de Datos...")
 def cargar_datos_desde_drive(file_id):
     try:
@@ -52,7 +51,7 @@ def cargar_datos_desde_drive(file_id):
     except Exception as e:
         return None, str(e)
 
-# --- 6. LÓGICA DE PERSISTENCIA (PARA NO RECARGAR AL EDITAR) ---
+# --- 5. LÓGICA DE PERSISTENCIA (EVITA RECARGAS AL EDITAR CÓDIGO) ---
 if 'base_datos' not in st.session_state:
     datos, hojas = cargar_datos_desde_drive(ID_ARCHIVO_DRIVE)
     if datos is not None:
@@ -64,29 +63,28 @@ if 'base_datos' not in st.session_state:
 archivo_excel = st.session_state.get('base_datos')
 nombres_hojas = st.session_state.get('hojas')
 
-# --- 7. TÍTULO Y CABECERA DE ESTADO (DISEÑO SOLICITADO) ---
+# --- 6. INTERFAZ VISUAL (TU ESTRUCTURA ORIGINAL) ---
 st.markdown("<h1 style='text-align: center; color: #1E3A8A;'>🏛️ SISTEMA DE CONSULTA DECLARACIÓN JURADA 2025 - ICA</h1>", unsafe_allow_html=True)
 
-# Indicador y Botón de Salida a la misma altura
+# Indicador y Salida alineados arriba de la línea
 col_status, col_espacio, col_logout = st.columns([2, 5, 1])
-
 with col_status:
     if archivo_excel is not None:
         st.success("✅ Base de datos conectada")
     else:
-        st.error(f"❌ Error: {st.session_state.get('error_carga', 'Sin conexión')}")
+        st.error(f"❌ Error: {st.session_state.get('error_carga')}")
 
 with col_logout:
-    if st.button("🚪 Cerrar Sesión"):
+    if st.button("🚪 Salir"):
         st.session_state['autenticado'] = False
         st.rerun()
 
-st.write("---") # Línea divisoria
+st.write("---") # Línea divisoria intacta
 
 if archivo_excel is None:
     st.stop()
 
-# --- 8. TU BUSCADOR ---
+# --- 7. BUSCADOR ---
 c1, c2 = st.columns(2)
 with c1:
     modo = st.radio("**Seleccione Criterio:**", ["1. Por COD_CONTRIBUTENTE", "2. Por COD_PREDIO"])
@@ -114,7 +112,7 @@ if valor:
             with st.expander(f"📋 Pestaña: {h}", expanded=True):
                 st.dataframe(d, use_container_width=True)
 
-        # --- 9. TU REPORTE PDF (CORREGIDO PARA BYTES) ---
+        # --- 8. REPORTE PDF (TU DISEÑO ORIGINAL) ---
         if st.button("📄 Generar Reporte PDF"):
             try:
                 pdf = FPDF(orientation='L', unit='mm', format='A4')
@@ -148,13 +146,7 @@ if valor:
 
                 pdf_output = pdf.output(dest='S')
                 pdf_bytes = pdf_output.encode('latin-1') if isinstance(pdf_output, str) else bytes(pdf_output)
-
-                st.download_button(
-                    label="⬇️ Descargar Reporte PDF",
-                    data=pdf_bytes,
-                    file_name=f"Reporte_{valor}.pdf",
-                    mime="application/pdf"
-                )
+                st.download_button(label="⬇️ Descargar Reporte PDF", data=pdf_bytes, file_name=f"Reporte_{valor}.pdf", mime="application/pdf")
             except Exception as e:
                 st.error(f"Error en PDF: {e}")
     else:
