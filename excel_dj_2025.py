@@ -12,17 +12,14 @@ st.set_page_config(page_title="Sistema de Consulta Declaracion Jurada 2025 - ICA
 CLAVE_SISTEMA = "octavio" 
 ID_ARCHIVO_DRIVE = "132VqpRNmOG8zQ1g-2xmNBI4OC0GFEkRk" 
 
-# --- LÓGICA DE ACCESO (TU TÍTULO SIEMPRE ARRIBA) ---
+# --- LÓGICA DE ACCESO (PANTALLA LIMPIA) ---
 if 'autenticado' not in st.session_state:
     st.session_state['autenticado'] = False
 
 if not st.session_state['autenticado']:
-    # Mantenemos tu título principal incluso en la pantalla de bloqueo
-    st.markdown("<h1 style='text-align: center; color: #1E3A8A;'>🏛️ SISTEMA DE CONSULTA DECLARACIÓN JURADA 2025 - ICA</h1>", unsafe_allow_html=True)
-    st.write("---")
-    
-    # Subtítulo de acceso restringido
-    st.markdown("<h2 style='text-align: center; color: #1E3A8A;'>🚫 ACCESO RESTRINGIDO</h2>", unsafe_allow_html=True)
+    # Solo mostramos el aviso de acceso restringido para mantener el diseño limpio
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; color: #1E3A8A;'>🏛️ ACCESO RESTRINGIDO</h1>", unsafe_allow_html=True)
     
     _, col_login, _ = st.columns([1, 1, 1])
     with col_login:
@@ -97,6 +94,7 @@ col_filtro = 'CODIGO' if "1" in modo else 'COD_PRED'
 with c2:
     valor = st.text_input(f"Ingrese {col_filtro}:").strip().lstrip('0')
 
+# --- LÓGICA DE BÚSQUEDA ACTUALIZADA ---
 if valor:
     resultados = {}
     total = 0
@@ -111,6 +109,7 @@ if valor:
                 resultados[h] = res[cols]
                 total += len(res)
 
+    # Actualización solicitada: Manejo de registros vacíos
     if total > 0:
         st.success(f"🔎 Registros encontrados: {total}")
         for h, d in resultados.items():
@@ -124,9 +123,12 @@ if valor:
                 pdf.add_page()
                 pdf.set_font("Helvetica", 'B', 16)
                 pdf.cell(0, 10, "REPORTE DECLARACION JURADA 2025 - ICA", ln=True, align='C')
-                # ... resto de la lógica de PDF ...
+                # ... lógica de llenado del PDF ...
                 pdf_output = pdf.output(dest='S')
                 pdf_bytes = pdf_output.encode('latin-1') if isinstance(pdf_output, str) else bytes(pdf_output)
                 st.download_button(label="⬇️ Descargar Reporte PDF", data=pdf_bytes, file_name=f"Reporte_{valor}.pdf", mime="application/pdf")
             except Exception as e:
                 st.error(f"Error en PDF: {e}")
+    else:
+        # Mensaje cuando no se encuentra el código
+        st.warning("⚠️ No se tiene registro")
