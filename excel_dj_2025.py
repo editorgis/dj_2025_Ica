@@ -8,17 +8,23 @@ from datetime import datetime
 st.set_page_config(page_title="Sistema de Consulta Declaracion Jurada 2025 - ICA", page_icon="🏛️", layout="wide")
 
 # --- 2. CONFIGURACIÓN PROTEGIDA (SECRETS) ---
-# Ahora el código no tiene NINGÚN dato sensible a la vista
 CLAVE_SISTEMA = st.secrets["CLAVE_SISTEMA"]
 ID_ARCHIVO_DRIVE = st.secrets["ID_ARCHIVO_DRIVE"] 
 
-# --- 3. LÓGICA DE ACCESO ---
+# --- 3. LÓGICA DE ACCESO (TU ESTRUCTURA ORIGINAL) ---
 if 'autenticado' not in st.session_state:
     st.session_state['autenticado'] = False
 
 if not st.session_state['autenticado']:
+    # Título Principal
     st.markdown("<h1 style='text-align: center; color: #1E3A8A;'>🏛️ SISTEMA DE CONSULTA DECLARACIÓN JURADA 2025 - ICA</h1>", unsafe_allow_html=True)
+    
+    # SUBTÍTULO DE AVISO LEGAL (Debajo del título)
+    st.markdown("<p style='text-align: center; color: #1E3A8A; font-weight: bold;'>🚫 AVISO: Este sistema contiene información catastral del Proyecto Ica. Está prohibido el acceso no autorizado bajo denuncia de la Ley No. 29733 Protección de Datos</p>", unsafe_allow_html=True)
+    
     st.write("---")
+    
+    # Pantalla de Bloqueo
     st.markdown("<h2 style='text-align: center; color: #1E3A8A;'>🚫 ACCESO RESTRINGIDO</h2>", unsafe_allow_html=True)
     
     _, col_login, _ = st.columns([1, 1, 1])
@@ -54,7 +60,7 @@ def cargar_datos_desde_drive(file_id):
     except Exception as e:
         return None, str(e)
 
-# --- 6. LÓGICA DE DATOS ---
+# --- 6. LÓGICA DE PERSISTENCIA ---
 if 'base_datos' not in st.session_state:
     datos, hojas = cargar_datos_desde_drive(ID_ARCHIVO_DRIVE)
     if datos is not None:
@@ -67,8 +73,11 @@ if 'base_datos' not in st.session_state:
 archivo_excel = st.session_state['base_datos']
 nombres_hojas = st.session_state['hojas']
 
-# --- 7. INTERFAZ DE USUARIO ---
+# --- 7. INTERFAZ VISUAL (ADENTRO DEL SISTEMA) ---
 st.markdown("<h1 style='text-align: center; color: #1E3A8A;'>🏛️ SISTEMA DE CONSULTA DECLARACIÓN JURADA 2025 - ICA</h1>", unsafe_allow_html=True)
+
+# Subtítulo también visible adentro
+st.markdown("<p style='text-align: center; color: #1E3A8A; font-weight: bold;'>🚫 AVISO: Este sistema contiene información catastral del Proyecto Ica. Está prohibido el acceso no autorizado bajo denuncia de la Ley No. 29733 Protección de Datos</p>", unsafe_allow_html=True)
 
 col_status, _, col_logout = st.columns([2, 5, 1])
 with col_status:
@@ -108,8 +117,17 @@ if valor:
             with st.expander(f"📋 Pestaña: {h}", expanded=True):
                 st.dataframe(d, use_container_width=True)
         
-        if st.button("📄 Generar PDF"):
-            st.info("Generando reporte...")
-            # (Aquí iría tu lógica de FPDF que ya tienes)
+        if st.button("📄 Generar Reporte PDF"):
+            try:
+                pdf = FPDF(orientation='L', unit='mm', format='A4')
+                pdf.add_page()
+                pdf.set_font("Helvetica", 'B', 16)
+                pdf.cell(0, 10, "REPORTE DECLARACION JURADA 2025 - ICA", ln=True, align='C')
+                pdf_output = pdf.output(dest='S')
+                pdf_bytes = pdf_output.encode('latin-1') if isinstance(pdf_output, str) else bytes(pdf_output)
+                st.download_button(label="⬇️ Descargar Reporte PDF", data=pdf_bytes, file_name=f"Reporte_{valor}.pdf", mime="application/pdf")
+            except Exception as e:
+                st.error(f"Error en PDF: {e}")
     else:
+        # Tu aviso de no registros
         st.warning("⚠️ No se tiene registro")
