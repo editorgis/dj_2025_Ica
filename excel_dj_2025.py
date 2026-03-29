@@ -1,14 +1,13 @@
 import streamlit as st
 import pandas as pd
 from fpdf import FPDF
-import io
 import gdown
 import os
 
 # --- 1. CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="Sistema Catastro ICA 2025", page_icon="🏛️", layout="wide")
 
-# --- 2. ID DE TU ARCHIVO DE DRIVE (YA CONFIGURADO) ---
+# --- 2. ID DE TU ARCHIVO DE DRIVE ---
 ID_ARCHIVO_DRIVE = "132VqpRNmOG8zQ1g-2xmNBI4OC0GFEkRk" 
 
 # --- 3. DICCIONARIO DE COLUMNAS (FILTROS) ---
@@ -29,10 +28,9 @@ def cargar_datos_desde_drive(file_id):
         url = f'https://drive.google.com/uc?id={file_id}'
         output = "archivo_local.xlsx"
         
-        # Descarga el archivo real usando gdown
+        # Descarga el archivo usando gdown (Requiere permisos de lectura activados en Drive)
         gdown.download(url, output, quiet=False, fuzzy=True)
         
-        # Procesar el Excel
         excel_reader = pd.ExcelFile(output, engine='openpyxl')
         nombres_hojas = excel_reader.sheet_names
         datos = {hoja: pd.read_excel(output, sheet_name=hoja, engine='openpyxl', dtype=str).fillna("") for hoja in nombres_hojas}
@@ -40,7 +38,6 @@ def cargar_datos_desde_drive(file_id):
     except Exception as e:
         return None, str(e)
 
-# Ejecución de la carga
 archivo_excel, nombres_hojas = cargar_datos_desde_drive(ID_ARCHIVO_DRIVE)
 
 if archivo_excel is None:
@@ -77,37 +74,55 @@ if valor:
             with st.expander(f"📋 Pestaña: {h}", expanded=True):
                 st.dataframe(d, use_container_width=True)
 
-        # --- 6. REPORTE PDF (CORRECCIÓN BYTES) ---
+        # --- 6. REPORTE PDF PROFESIONAL (TABLAS ALINEADAS) ---
         if st.button("📄 Generar Reporte PDF"):
             try:
+                # Orientación Landscape (L) para que las tablas quepan mejor
                 pdf = FPDF(orientation='L', unit='mm', format='A4')
                 pdf.add_page()
+                
+                # Título
                 pdf.set_font("Helvetica", 'B', 16)
                 pdf.cell(0, 10, "REPORTE CATASTRAL - ICA 2025", ln=True, align='C')
+                pdf.set_font("Helvetica", size=10)
+                pdf.cell(0, 7, f"Consulta: {col_filtro} {valor}", ln=True, align='C')
                 pdf.ln(5)
 
                 for h, data in resultados.items():
+                    # Título de Sección con fondo azul
                     pdf.set_font("Helvetica", 'B', 11)
-                    pdf.set_fill_color(240, 240, 240)
-                    pdf.cell(0, 10, f" SECCIÓN: {h.upper()}", ln=True, border=1, fill=True)
+                    pdf.set_fill_color(30, 58, 138) 
+                    pdf.set_text_color(255, 255, 255)
+                    pdf.cell(0, 8, f" SECCIÓN: {h.upper()}", ln=True, fill=True, border=1)
                     
-                    pdf.set_font("Helvetica", size=8)
+                    # Configuración de Columnas
+                    pdf.set_text_color(0, 0, 0)
+                    pdf.set_font("Helvetica", 'B', 7)
+                    columnas = data.columns.tolist()
+                    ancho_col = 277 / len(columnas) # Reparte el ancho de la hoja A4 (277mm útiles)
+
+                    # Dibujar Cabeceras de Tabla
+                    pdf.set_fill_color(240, 240, 240)
+                    for col in columnas:
+                        pdf.cell(ancho_col, 6, str(col), border=1, align='C', fill=True)
+                    pdf.ln()
+
+                    # Dibujar Filas
+                    pdf.set_font("Helvetica", size=6)
                     for _, fila in data.iterrows():
-                        # Crear una cadena de texto con los datos de la fila
-                        texto_fila = " | ".join([f"{k}: {v}" for k, v in fila.to_dict().items()])
-                        pdf.multi_cell(0, 6, texto_fila, border=1)
-                        pdf.ln(1)
-                
-                # --- SOLUCIÓN ERROR BYTEARRAY ---
-                # Generamos el PDF como string y lo codificamos a bytes puros
+                        for col in columnas:
+                            # Recortamos texto largo para que no rompa la celda
+                            contenido = str(fila[col])[:20] 
+                            pdf.cell(ancho_col, 5, contenido, border=1, align='C')
+                        pdf.ln()
+                    pdf.ln(5)
+
+                # Solución para el error de bytearray en la nube
                 pdf_output = pdf.output(dest='S')
-                if isinstance(pdf_output, str):
-                    pdf_bytes = pdf_output.encode('latin-1')
-                else:
-                    pdf_bytes = bytes(pdf_output)
-                
+                pdf_bytes = pdf_output.encode('latin-1') if isinstance(pdf_output, str) else bytes(pdf_output)
+
                 st.download_button(
-                    label="⬇️ Descargar Reporte en PDF",
+                    label="⬇️ Descargar Reporte PDF Ordenado",
                     data=pdf_bytes,
                     file_name=f"Reporte_{valor}.pdf",
                     mime="application/pdf"
