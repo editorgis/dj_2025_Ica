@@ -9,7 +9,7 @@ from datetime import datetime
 st.set_page_config(page_title="Sistema de Consulta Declaracion Jurada 2025 - ICA", page_icon="🏛️", layout="wide")
 
 # --- 2. CONFIGURACIÓN DE ACCESO Y DRIVE ---
-CLAVE_SISTEMA = "CAT_2025" 
+CLAVE_SISTEMA = "octavio" 
 ID_ARCHIVO_DRIVE = "132VqpRNmOG8zQ1g-2xmNBI4OC0GFEkRk" 
 
 # --- LÓGICA DE ACCESO (TU TÍTULO SIEMPRE ARRIBA) ---
