@@ -24,8 +24,8 @@ if not st.session_state['autenticado']:
     
     st.write("---")
     
-    # Pantalla de Bloqueo
-    st.markdown("<h2 style='text-align: center; color: #1E3A8A;'>🚫 ACCESO RESTRINGIDO</h2>", unsafe_allow_html=True)
+    # Pantalla de Bloqueo - CAMBIO A CANDADO AQUÍ
+    st.markdown("<h2 style='text-align: center; color: #1E3A8A;'>🔒 ACCESO RESTRINGIDO</h2>", unsafe_allow_html=True)
     
     _, col_login, _ = st.columns([1, 1, 1])
     with col_login:
