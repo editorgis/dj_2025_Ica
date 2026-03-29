@@ -20,7 +20,7 @@ columnas_especificas = {
 }
 
 # --- 4. FUNCIÓN DE CARGA DESDE DRIVE ---
-@st.cache_data(show_spinner="⏳ Sincronizando con Google Drive...")
+@st.cache_data(show_spinner="⏳ Sincronizando con la Base de Datos...")
 def cargar_datos_desde_drive(file_id):
     try:
         url = f'https://drive.google.com/uc?id={file_id}'
@@ -34,7 +34,7 @@ def cargar_datos_desde_drive(file_id):
         return None, str(e)
 
 # TÍTULO PRINCIPAL
-st.markdown("<h1 style='text-align: center; color: #1E3A8A;'>🏛️ SISTEMA DE CONSULTA CATASTRAL 2025</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center; color: #1E3A8A;'>🏛️ SISTEMA DE CONSULTA DECLARACION JURADA 2025 - ICA</h1>", unsafe_allow_html=True)
 
 # EJECUCIÓN DE CARGA
 archivo_excel, nombres_hojas = cargar_datos_desde_drive(ID_ARCHIVO_DRIVE)
