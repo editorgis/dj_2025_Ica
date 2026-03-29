@@ -9,24 +9,22 @@ from datetime import datetime
 st.set_page_config(page_title="Sistema de Consulta Declaracion Jurada 2025 - ICA", page_icon="🏛️", layout="wide")
 
 # --- 2. CONFIGURACIÓN DE ACCESO Y DRIVE ---
-CLAVE_SISTEMA = "CAT_2025"  # <--- TU CLAVE AQUÍ
+CLAVE_SISTEMA = "CAT_2025" 
 ID_ARCHIVO_DRIVE = "132VqpRNmOG8zQ1g-2xmNBI4OC0GFEkRk" 
 
-# Lógica de autenticación (Capa superior)
+# Lógica de autenticación simple
 if 'autenticado' not in st.session_state:
     st.session_state['autenticado'] = False
 
 if not st.session_state['autenticado']:
-    st.markdown("<h1 style='text-align: center; color: #1E3A8A;'>🏛️ ACCESO RESTRINGIDO</h1>", unsafe_allow_html=True)
-    _, col_login, _ = st.columns([1, 1, 1])
-    with col_login:
-        password = st.text_input("Ingrese la clave del sistema:", type="password")
-        if st.button("Ingresar al Sistema"):
-            if password == CLAVE_SISTEMA:
-                st.session_state['autenticado'] = True
-                st.rerun()
-            else:
-                st.error("❌ Clave incorrecta")
+    st.title("🔐 Acceso al Sistema")
+    password = st.text_input("Ingrese la clave del sistema:", type="password")
+    if st.button("Ingresar"):
+        if password == CLAVE_SISTEMA:
+            st.session_state['autenticado'] = True
+            st.rerun()
+        else:
+            st.error("❌ Clave incorrecta")
     st.stop()
 
 # --- 3. DICCIONARIO DE COLUMNAS (FILTROS) ---
@@ -37,7 +35,7 @@ columnas_especificas = {
     'Instalaciones': ['CODIGO', 'COD_PRED', 'Descripcion', 'MES_CONS', 'ANO_CONS', 'ANNO_ANTIG', 'CANTIDAD', 'VAL_INSTALAC', 'UNI_MEDIDA']
 }
 
-# --- 4. FUNCIÓN DE CARGA (CON CACHE) ---
+# --- 4. FUNCIÓN DE CARGA ---
 @st.cache_data(show_spinner="⏳ Sincronizando con la Base de Datos...")
 def cargar_datos_desde_drive(file_id):
     try:
@@ -51,7 +49,7 @@ def cargar_datos_desde_drive(file_id):
     except Exception as e:
         return None, str(e)
 
-# --- 5. LÓGICA DE PERSISTENCIA (EVITA RECARGAS AL EDITAR CÓDIGO) ---
+# --- 5. LÓGICA DE PERSISTENCIA ---
 if 'base_datos' not in st.session_state:
     datos, hojas = cargar_datos_desde_drive(ID_ARCHIVO_DRIVE)
     if datos is not None:
@@ -63,10 +61,10 @@ if 'base_datos' not in st.session_state:
 archivo_excel = st.session_state.get('base_datos')
 nombres_hojas = st.session_state.get('hojas')
 
-# --- 6. INTERFAZ VISUAL (TU ESTRUCTURA ORIGINAL) ---
+# --- 6. INTERFAZ VISUAL (TU ESTRUCTURA ORIGINAL INTACTA) ---
 st.markdown("<h1 style='text-align: center; color: #1E3A8A;'>🏛️ SISTEMA DE CONSULTA DECLARACIÓN JURADA 2025 - ICA</h1>", unsafe_allow_html=True)
 
-# Indicador y Salida alineados arriba de la línea
+# Indicador y Salida alineados
 col_status, col_espacio, col_logout = st.columns([2, 5, 1])
 with col_status:
     if archivo_excel is not None:
@@ -75,11 +73,11 @@ with col_status:
         st.error(f"❌ Error: {st.session_state.get('error_carga')}")
 
 with col_logout:
-    if st.button("🚪 Salir"):
+    if st.button("🚪 Cerrar Sesión"):
         st.session_state['autenticado'] = False
         st.rerun()
 
-st.write("---") # Línea divisoria intacta
+st.write("---") 
 
 if archivo_excel is None:
     st.stop()
@@ -112,7 +110,7 @@ if valor:
             with st.expander(f"📋 Pestaña: {h}", expanded=True):
                 st.dataframe(d, use_container_width=True)
 
-        # --- 8. REPORTE PDF (TU DISEÑO ORIGINAL) ---
+        # --- 8. REPORTE PDF ---
         if st.button("📄 Generar Reporte PDF"):
             try:
                 pdf = FPDF(orientation='L', unit='mm', format='A4')
