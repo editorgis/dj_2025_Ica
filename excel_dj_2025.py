@@ -5,7 +5,7 @@ import gdown
 from datetime import datetime
 
 # --- 1. CONFIGURACIÓN DE PÁGINA ---
-st.set_page_config(page_title="Sistema de Consulta Declaracion Jurada 2025 - ICA demo.v1", page_icon="🏛️", layout="wide")
+st.set_page_config(page_title="Sistema de Consulta Declaracion Jurada 2025 - ICA demo.v1</h1", page_icon="🏛️", layout="wide")
 
 # --- 2. CONFIGURACIÓN PROTEGIDA (SECRETS) ---
 CLAVE_SISTEMA = st.secrets["CLAVE_SISTEMA"]
