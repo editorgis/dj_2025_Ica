@@ -79,7 +79,7 @@ st.markdown("<p style='text-align: center; color: #1E3A8A; font-weight: bold;'>�
 
 col_status, _, col_logout = st.columns([2, 5, 1])
 with col_status:
-    st.success("✅ Base de datos conectada")
+    st.success("✅ Base de datos conectada 'Catastro10102025.xlsx' ")
 with col_logout:
     if st.button("🚪 Salir"):
         st.session_state['autenticado'] = False
