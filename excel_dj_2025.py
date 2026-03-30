@@ -5,7 +5,7 @@ import gdown
 from datetime import datetime
 
 # --- 1. CONFIGURACIÓN DE PÁGINA ---
-st.set_page_config(page_title="Sistema de Consulta Declaracion Jurada 2025 - ICA demo.v.1.0", page_icon="🏛️", layout="wide")
+st.set_page_config(page_title="Sistema de Consulta Declaracion Jurada 2025 - ICA demo.v1", page_icon="🏛️", layout="wide")
 
 # --- 2. CONFIGURACIÓN PROTEGIDA (SECRETS) ---
 CLAVE_SISTEMA = st.secrets["CLAVE_SISTEMA"]
@@ -17,7 +17,7 @@ if 'autenticado' not in st.session_state:
 
 if not st.session_state['autenticado']:
     # Título Principal
-    st.markdown("<h1 style='text-align: center; color: #1E3A8A;'>🏛️ SISTEMA DE CONSULTA DECLARACIÓN JURADA 2025 - ICA demo.v.1.0</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; color: #1E3A8A;'>🏛️ SISTEMA DE CONSULTA DECLARACIÓN JURADA 2025 - ICA demo.v1</h1>", unsafe_allow_html=True)
     
     # SUBTÍTULO DE AVISO LEGAL
     st.markdown("<p style='text-align: center; color: #1E3A8A; font-weight: bold;'>🚫 AVISO: Este sistema contiene información reservada. Está prohibido el acceso no autorizado bajo denuncia de la Ley No. 29733 Protección de Datos.</p>", unsafe_allow_html=True)
@@ -74,7 +74,7 @@ archivo_excel = st.session_state['base_datos']
 nombres_hojas = st.session_state['hojas']
 
 # --- 7. INTERFAZ VISUAL (DENTRO DEL SISTEMA) ---
-st.markdown("<h1 style='text-align: center; color: #1E3A8A;'>🏛️ SISTEMA DE CONSULTA DECLARACIÓN JURADA 2025 - ICA</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center; color: #1E3A8A;'>🏛️ SISTEMA DE CONSULTA DECLARACIÓN JURADA 2025 - ICA demo.v1/h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center; color: #1E3A8A; font-weight: bold;'>🚫 AVISO: Este sistema contiene información reservada. Está prohibido el acceso no autorizado bajo denuncia de la Ley No. 29733 Protección de Datos</p>", unsafe_allow_html=True)
 
 col_status, _, col_logout = st.columns([2, 5, 1])
