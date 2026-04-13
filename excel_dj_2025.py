@@ -52,7 +52,7 @@ def cargar_datos_desde_drive(file_id):
     try:
         url = f'https://drive.google.com/uc?id={file_id}'
         output = "archivo_local.xlsx"
-        gdown.download(url, output, quiet=True, fuzzy=True)
+        gdown.download(url, output, quiet=True)
         excel_reader = pd.ExcelFile(output, engine='openpyxl')
         nombres_hojas = excel_reader.sheet_names
         datos = {hoja: pd.read_excel(output, sheet_name=hoja, engine='openpyxl', dtype=str).fillna("") for hoja in nombres_hojas}
