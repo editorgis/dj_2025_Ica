@@ -1,88 +1,112 @@
 import streamlit as st
 import pandas as pd
+from fpdf import FPDF
+import gdown
+from datetime import datetime
 
-# Configuración de la página institucional
-st.set_page_config(
-    page_title="Sistema de Consulta Rápida - Declaración Jurada 2025",
-    page_icon="🔍",
-    layout="wide"
-)
+# --- 1. CONFIGURACIÓN DE PÁGINA ---
+st.set_page_config(page_title="Sistema de Consulta Rápida Declaracion Jurada 2025 - ICA demo.v1", page_icon="🏛️", layout="wide")
 
-# =============================================================================
-# 1. CONTROL DE ACCESO DE SEGURIDAD (PASSWORD)
-# =============================================================================
-def check_password():
-    """Devuelve True si el usuario ingresó la contraseña correcta."""
-    def password_entered():
-        if st.session_state["password"] == "Ica2025*":  # <-- Tu clave del sistema
-            st.session_state["password_correct"] = True
-            del st.session_state["password"]  # Limpia la variable de la memoria
-        else:
-            st.session_state["password_correct"] = False
+# --- 2. CONFIGURACIÓN PROTEGIDA (SECRETS) ---
+CLAVE_SISTEMA = st.secrets["CLAVE_SISTEMA"]
+ID_ARCHIVO_DRIVE = st.secrets["ID_ARCHIVO_DRIVE"] 
 
-    if "password_correct" not in st.session_state:
-        # Pantalla de bloqueo inicial
-        st.markdown("<h2 style='text-align: center;'>🏛️ SISTEMA DE CONSULTA RÁPIDA DECLARACIÓN JURADA</h2>", unsafe_allow_html=True)
-        st.markdown("<h3 style='text-align: center;'>2025 - ICA demo.v1</h3>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center; color: red;'>🛑 AVISO: Este sistema contiene información reservada. Ley No. 29733 Protección de Datos.</p>", unsafe_allow_html=True)
+# --- 3. LÓGICA DE ACCESO (ESTRUCTURA ORIGINAL) ---
+if 'autenticado' not in st.session_state:
+    st.session_state['autenticado'] = False
+
+if not st.session_state['autenticado']:
+    # Título Principal
+    st.markdown("<h1 style='text-align: center; color: #1E3A8A;'>🏛️ SISTEMA DE CONSULTA RÁPIDA DECLARACIÓN JURADA 2025 - ICA demo.v1</h1>", unsafe_allow_html=True)
+    
+    # SUBTÍTULO DE AVISO LEGAL
+    st.markdown("<p style='text-align: center; color: #1E3A8A; font-weight: bold;'>🚫 AVISO: Este sistema contiene información reservada. Está prohibido el acceso no autorizado bajo denuncia de la Ley No. 29733 Protección de Datos.</p>", unsafe_allow_html=True)
+    
+    st.write("---")
+    
+    # Pantalla de Bloqueo con CANDADO DORADO
+    st.markdown("<h2 style='text-align: center; color: #1E3A8A;'>🔐 ACCESO RESTRINGIDO</h2>", unsafe_allow_html=True)
+    
+    _, col_login, _ = st.columns([1, 1, 1])
+    with col_login:
+        password = st.text_input("Ingrese la clave del sistema:", type="password")
+        if st.button("Ingresar al Sistema"):
+            if password == CLAVE_SISTEMA:
+                st.session_state['autenticado'] = True
+                st.rerun()
+            else:
+                st.error("❌ Clave incorrecta")
+    st.stop()
+
+# --- 4. DICCIONARIO DE COLUMNAS (FILTROS) ---
+columnas_especificas = {
+    'Contribuyente': ['CODIGO', 'Nombre', 'Dirección Fiscal', 'Junta', 'Dni', 'Correo'],
+    'Predios': ['CODIGO', 'COD_PRED', 'TipoPredio', 'Vía', 'Junta', 'NUM_MANZ', 'NUM_LOTE', 'SUB_LOTE', 'NUM_CALL', 'NUM_DEPA', 'Condicion Propieda', 'Descripcion Uso', 'NUM_PISOS', 'NUM_CONDO', 'AREA_TERRENO', 'AREA_COMUN', 'PORCEN_PROPIEDAD'],
+    'Pisos': ['CODIGO', 'COD_PRED', 'ITEM_PISO', 'NIV_PISO', 'TIPO_NIVEL', 'TipoNivel', 'MES_CONS', 'ANO_CONS', 'ANNO_ANTIG', 'ID_MATERIA', 'Material', 'ID_ESTADOS', 'Conservacion', 'CATE_MUROS', 'CATE_TECHO', 'CATE_PISOS', 'CATE_PUERT', 'CATE_REVES', 'CATE_BANNO', 'CATE_INSEL', 'AREA_CONST', 'POR_COMUN', 'AREA_COMUN'],
+    'Instalaciones': ['CODIGO', 'COD_PRED', 'Descripcion', 'MES_CONS', 'ANO_CONS', 'ANNO_ANTIG', 'CANTIDAD', 'VAL_INSTALAC', 'UNI_MEDIDA']
+}
+
+# --- 5. FUNCIÓN DE CARGA ---
+@st.cache_data(show_spinner="⏳ Sincronizando con la Base de Datos...")
+def cargar_datos_desde_drive(file_id):
+    try:
+        url = f'https://drive.google.com/uc?id={file_id}'
+        output = "archivo_local.xlsx"
+        gdown.download(url, output, quiet=True)
+        excel_reader = pd.ExcelFile(output, engine='openpyxl')
+        nombres_hojas = excel_reader.sheet_names
         
-        st.markdown("---")
-        col1, col2, col3 = st.columns([2, 2, 2])
-        with col2:
-            st.markdown("#### 🔒 ACCESO RESTRINGIDO")
-            st.text_input("Ingrese la clave del sistema:", type="password", on_change=password_entered, key="password")
-            if "password_correct" in st.session_state and not st.session_state["password_correct"]:
-                st.error("❌ Clave incorrecta. Inténtelo nuevamente.")
-        return False
-    return True
+        # Cargamos y estandarizamos inmediatamente los textos para evitar fallas de cruces
+        datos = {}
+        for hoja in nombres_hojas:
+            df_hoha = pd.read_excel(output, sheet_name=hoja, engine='openpyxl', dtype=str).fillna("")
+            # Limpieza ejecutiva de strings en todas las columnas del dataframe
+            for col in df_hoha.columns:
+                df_hoha[col] = df_hoha[col].astype(str).str.strip()
+            datos[hoja] = df_hoha
+            
+        return datos, nombres_hojas
+    except Exception as e:
+        return None, str(e)
 
-# Si el usuario no está autenticado, se detiene la ejecución aquí
-if not check_password():
-    st.stop()
+# --- 6. LÓGICA DE PERSISTENCIA ---
+if 'base_datos' not in st.session_state:
+    datos, hojas = cargar_datos_desde_drive(ID_ARCHIVO_DRIVE)
+    if datos is not None:
+        st.session_state['base_datos'] = datos
+        st.session_state['hojas'] = hojas
+    else:
+        st.error(f"Error de conexión con Google Drive: {hojas}")
+        st.stop()
 
-# =============================================================================
-# 2. CARGA Y OPTIMIZACIÓN DE LA BASE DE DATOS (EXCEL)
-# =============================================================================
-@st.cache_data
-def cargar_datos():
-    # Carga el archivo Excel desde la raíz de tu repositorio
-    archivo = "Catastro10102025.xlsx"
-    data = pd.read_excel(archivo)
-    
-    # Estandarización estricta de textos para evitar fallas por minúsculas o espacios huerfanos
-    data['NM_CONTR_RAZ_SOC'] = data['NM_CONTR_RAZ_SOC'].fillna('').astype(str).str.upper().str.strip()
-    data['NM_URB'] = data['NM_URB'].fillna('').astype(str).str.upper().str.strip()
-    data['NU_MANZ'] = data['NU_MANZ'].fillna('').astype(str).str.upper().str.strip()
-    data['NU_LOTE'] = data['NU_LOTE'].fillna('').astype(str).str.upper().str.strip()
-    
-    return data
+archivo_excel = st.session_state['base_datos']
+nombres_hojas = st.session_state['hojas']
 
-try:
-    df = cargar_datos()
-    # Indicador superior de conexión exitosa
-    st.sidebar.success(f"✅ Base de datos conectada: 'Catastro10102025.xlsx'")
-    if st.sidebar.button("🚪 Salir del Sistema"):
-        del st.session_state["password_correct"]
+# --- 7. INTERFAZ VISUAL (DENTRO DEL SISTEMA) ---
+st.markdown("<h1 style='text-align: center; color: #1E3A8A;'>🏛️ SISTEMA DE CONSULTA RÁPIDA DECLARACIÓN JURADA 2025 - ICA</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #1E3A8A; font-weight: bold;'>🚫 AVISO: Este sistema contiene información reservada. Está prohibido el acceso no autorizado bajo denuncia de la Ley No. 29733 Protección de Datos</p>", unsafe_allow_html=True)
+
+col_status, _, col_logout = st.columns([3, 4, 1])
+with col_status:
+    st.success("✅ Sincronizado correctamente con la Base de Datos en la Nube")
+with col_logout:
+    if st.button("🚪 Salir"):
+        st.session_state['autenticado'] = False
         st.rerun()
-except Exception as e:
-    st.error(f"❌ Error crítico al cargar el archivo Excel: {e}")
-    st.stop()
+
+st.write("---") 
 
 # =============================================================================
-# 3. INTERFAZ PRINCIPAL Y CRITERIOS DE BÚSQUEDA
+# --- 8. NUEVO BUSCADOR INTERACTIVO AVANZADO (DISEÑO PROFESIONAL) ---
 # =============================================================================
-st.markdown("## 🏛️ SISTEMA DE CONSULTA RÁPIDA DECLARACIÓN JURADA 2025 - ICA")
-st.markdown("<p style='color: gray;'>Módulo Supervisor - Proyecto de Actualización Catastral</p>", unsafe_allow_html=True)
-st.markdown("---")
-
 st.markdown("### 🔍 Panel de Consulta de Información Cadastral")
 
-criterio = st.radio(
+modo = st.radio(
     "Seleccione el criterio de búsqueda requerido:",
     [
-        "1.- POR COD_CONTRIBUYENTE",
-        "2.- POR COD_PREDIO",
-        "3.- POR NOMBRE / RAZÓN SOCIAL",
+        "1.- POR COD_CONTRIBUYENTE", 
+        "2.- POR COD_PREDIO", 
+        "3.- POR NOMBRE / RAZÓN SOCIAL", 
         "4.- POR UBICACIÓN URBANA"
     ],
     horizontal=True
@@ -90,47 +114,55 @@ criterio = st.radio(
 
 st.markdown("---")
 
-# Contenedores lógicos del filtro
-df_filtrado = pd.DataFrame()
+# Inicialización de flags y variables de búsqueda cruzada
+codigos_contribuyente_encontrados = set()
+codigos_predio_encontrados = set()
 ejecutar_busqueda = False
+valor_reporte = "" # Para el nombre del archivo PDF
 
 # -----------------------------------------------------------------------------
 # CRITERIO 1: POR CÓDIGO DE CONTRIBUYENTE
 # -----------------------------------------------------------------------------
-if "1.- POR COD_CONTRIBUYENTE" in criterio:
-    cod_contr = st.text_input("Ingrese Código de Contribuyente (Exacto):", placeholder="Ej. 0012345").strip()
-    if cod_contr:
-        df_filtrado = df[df['COD_CONTRIBUYENTE'].astype(str).str.strip() == cod_contr]
+if "1.- POR COD_CONTRIBUYENTE" in modo:
+    valor = st.text_input("Ingrese Código de Contribuyente (Exacto):", placeholder="Ej. 0012345").strip()
+    if valor:
+        valor_limpio = valor.lstrip('0')
+        codigos_contribuyente_encontrados.add(valor_limpio)
+        valor_reporte = valor
         ejecutar_busqueda = True
 
 # -----------------------------------------------------------------------------
 # CRITERIO 2: POR CÓDIGO DE PREDIO
 # -----------------------------------------------------------------------------
-elif "2.- POR COD_PREDIO" in criterio:
-    cod_predio = st.text_input("Ingrese Código de Predio (Exacto):", placeholder="Ej. P-009876").strip()
-    if cod_predio:
-        df_filtrado = df[df['COD_PREDIO'].astype(str).str.strip() == cod_predio]
+elif "2.- POR COD_PREDIO" in modo:
+    valor = st.text_input("Ingrese Código de Predio (Exacto):", placeholder="Ej. P-009876").strip()
+    if valor:
+        valor_limpio = valor.lstrip('0')
+        codigos_predio_encontrados.add(valor_limpio)
+        valor_reporte = valor
         ejecutar_busqueda = True
 
 # -----------------------------------------------------------------------------
-# CRITERIO 3: POR NOMBRE / RAZÓN SOCIAL (Coincidencias múltiples por palabras)
+# CRITERIO 3: POR NOMBRE / RAZÓN SOCIAL (Búsqueda inteligente por palabras)
 # -----------------------------------------------------------------------------
-elif "3.- POR NOMBRE / RAZÓN SOCIAL" in criterio:
-    nombre_buscar = st.text_input("Ingrese Nombre, Apellidos o Razón Social (Búsqueda Parcial):", placeholder="Ej. LUIS ALBERTO SANCHEZ").upper().strip()
-    if nombre_buscar:
-        palabras_clave = nombre_buscar.split()
-        # Filtra registros que contengan todas las palabras escritas independientemente del orden
-        condicion_nombre = df['NM_CONTR_RAZ_SOC'].apply(lambda x: all(palabra in x for palabra in palabras_clave))
-        df_filtrado = df[condicion_nombre]
-        ejecutar_busqueda = True
+elif "3.- POR NOMBRE / RAZÓN SOCIAL" in modo:
+    valor = st.text_input("Ingrese Nombre, Apellidos o Razón Social (Búsqueda Parcial):", placeholder="Ej. LUIS ALBERTO SANCHEZ").upper().strip()
+    if valor:
+        df_cont = archivo_excel.get('Contribuyente')
+        if df_cont is not None and 'Nombre' in df_cont.columns and 'CODIGO' in df_cont.columns:
+            palabras_clave = valor.split()
+            # Valida que el registro contenga todas las palabras ingresadas sin importar el orden
+            mask = df_cont['Nombre'].str.upper().apply(lambda x: all(palabra in str(x) for palabra in palabras_clave))
+            cods = df_cont[mask]['CODIGO'].str.strip().str.lstrip('0').unique()
+            codigos_contribuyente_encontrados.update(cods)
+            valor_reporte = valor
+            ejecutar_busqueda = True
 
 # -----------------------------------------------------------------------------
-# CRITERIO 4: POR UBICACIÓN URBANA (Menú unificado con 3 entradas de texto)
+# CRITERIO 4: POR UBICACIÓN URBANA (Menú unificado con 3 entradas independientes)
 # -----------------------------------------------------------------------------
-elif "4.- POR UBICACIÓN URBANA" in criterio:
+elif "4.- POR UBICACIÓN URBANA" in modo:
     st.markdown("##### 📍 Ingrese los parámetros de Ubicación Territorial")
-    
-    # Grid estructurado y proporcional
     col_urb, col_mz, col_lt = st.columns([4, 2, 2])
     
     with col_urb:
@@ -141,43 +173,93 @@ elif "4.- POR UBICACIÓN URBANA" in criterio:
         lote_ingresado = st.text_input("LOTE:", placeholder="Ej. 15").upper().strip()
         
     if urb_ingresada:
-        # Filtro base obligatorio (Búsqueda parcial en urbanización para flexibilidad del operador)
-        condicion_geo = df['NM_URB'].str.contains(urb_ingresada, na=False, regex=False)
+        # 1. Buscar en la pestaña 'Contribuyente' por campo Junta
+        df_cont = archivo_excel.get('Contribuyente')
+        if df_cont is not None and 'Junta' in df_cont.columns and 'CODIGO' in df_cont.columns:
+            mask_cont = df_cont['Junta'].str.upper().str.contains(urb_ingresada, na=False)
+            codigos_contribuyente_encontrados.update(df_cont[mask_cont]['CODIGO'].str.strip().str.lstrip('0').unique())
         
-        # Filtros acumulativos condicionales si el usuario decide precisar Mz y Lote
-        if mz_ingresada:
-            condicion_geo = condicion_geo & (df['NU_MANZ'] == mz_ingresada)
-        if lote_ingresado:
-            condicion_geo = condicion_geo & (df['NU_LOTE'] == lote_ingresado)
+        # 2. Buscar en la pestaña 'Predios' cruzando Urb (Junta), Mz y Lote
+        df_pred = archivo_excel.get('Predios')
+        if df_pred is not None:
+            mask_pred = df_pred['Junta'].str.upper().str.contains(urb_ingresada, na=False)
             
-        df_filtrado = df[condicion_geo]
+            if mz_ingresada:
+                mask_pred = mask_pred & (df_pred['NUM_MANZ'].str.lstrip('0') == mz_ingresada.lstrip('0'))
+            if lote_ingresado:
+                mask_pred = mask_pred & (df_pred['NUM_LOTE'].str.lstrip('0') == lote_ingresado.lstrip('0'))
+                
+            cods_p = df_pred[mask_pred]['COD_PRED'].str.strip().str.lstrip('0').unique()
+            codigos_predio_encontrados.update(cods_p)
+            
+            # También arrastramos los códigos de contribuyente vinculados a estos predios para amarrar la cascada
+            if 'CODIGO' in df_pred.columns:
+                cods_c = df_pred[mask_pred]['CODIGO'].str.strip().str.lstrip('0').unique()
+                codigos_contribuyente_encontrados.update(cods_c)
+                
+        valor_reporte = f"{urb_ingresada}_MZ_{mz_ingresada}_LT_{lote_ingresado}"
         ejecutar_busqueda = True
     else:
-        st.info("💡 Por favor, ingrese al menos el nombre de la **Urbanización / Junta** para delimitar el ámbito geográfico de búsqueda.")
+        st.info("💡 Por favor, ingrese al menos el nombre de la **Urbanización / Junta** para delimitar el ámbito geográfico.")
 
-# =============================================================================
-# 4. DESPLIEGUE EJECUTIVO DE RESULTADOS
-# =============================================================================
+# --- PROCESAMIENTO Y CRUCE MULTI-PESTAÑA EN CASCADA ---
 if ejecutar_busqueda:
-    st.markdown("---")
-    if not df_filtrado.empty:
-        cant_registros = len(df_filtrado)
+    resultados = {}
+    total = 0
+    
+    if codigos_contribuyente_encontrados or codigos_predio_encontrados:
+        for h in nombres_hojas:
+            df = archivo_excel[h]
+            
+            col_id_contribuyente = next((c for c in df.columns if c.upper() == 'CODIGO'), None)
+            col_id_predio = next((c for c in df.columns if c.upper() == 'COD_PRED'), None)
+            
+            mask_final = pd.Series(False, index=df.index)
+            
+            if col_id_contribuyente and codigos_contribuyente_encontrados:
+                mask_final |= df[col_id_contribuyente].str.strip().str.lstrip('0').isin(codigos_contribuyente_encontrados)
+                
+            if col_id_predio and codigos_predio_encontrados:
+                mask_final |= df[col_id_predio].str.strip().str.lstrip('0').isin(codigos_predio_encontrados)
+            
+            res = df[mask_final]
+            if not res.empty:
+                cols = [c for c in columnas_especificas.get(h, res.columns) if c in res.columns]
+                resultados[h] = res[cols]
+                total += len(res)
+
+    # --- DESPLIEGUE FINAL DE RESULTADOS CORPORATIVOS ---
+    if total > 0:
+        st.success(f"🔎 Cruce de datos exitoso. Registros encontrados en cascada: {total}")
         
-        # Indicador de rendimiento / volumen de datos hallados
-        st.metric(label="Registros Coincidentes Encontrados", value=f"{cant_registros} UUCC")
+        # Bloque de llaves vinculadas en la cabecera
+        if codigos_contribuyente_encontrados and "1" not in modo:
+            st.info(f"🔑 **Contribuyentes vinculados:** {', '.join(list(codigos_contribuyente_encontrados)[:10])} {'...' if len(codigos_contribuyente_encontrados) > 10 else ''}")
+        if codigos_predio_encontrados and "2" not in modo:
+            st.info(f"🏠 **Predios vinculados:** {', '.join(list(codigos_predio_encontrados)[:10])} {'...' if len(codigos_predio_encontrados) > 10 else ''}")
+
+        for h, d in resultados.items():
+            with st.expander(f"📋 Pestaña: {h}", expanded=True):
+                st.dataframe(d, use_container_width=True)
         
-        # Visualización de datos corporativa
-        st.dataframe(
-            df_filtrado, 
-            use_container_width=True,
-            column_config={
-                "COD_CONTRIBUYENTE": "Cód. Contribuyente",
-                "COD_PREDIO": "Cód. Predio",
-                "NM_CONTR_RAZ_SOC": "Contribuyente / Razón Social",
-                "NM_URB": "Habilitación / Urbanización",
-                "NU_MANZ": "Mz.",
-                "NU_LOTE": "Lt."
-            }
-        )
+        # --- GENERACIÓN DE REPORTE PDF ---
+        try:
+            pdf = FPDF(orientation='L', unit='mm', format='A4')
+            pdf.add_page()
+            pdf.set_font("Helvetica", 'B', 16)
+            pdf.cell(0, 10, "REPORTE DECLARACION JURADA 2025 - ICA", ln=True, align='C')
+            pdf_output = pdf.output(dest='S')
+            pdf_bytes = pdf_output.encode('latin-1') if isinstance(pdf_output, str) else bytes(pdf_output)
+            
+            st.write("") 
+            st.download_button(
+                label="⬇️ Descargar Reporte PDF", 
+                data=pdf_bytes, 
+                file_name=f"Reporte_{valor_reporte.replace(' ', '_')}.pdf", 
+                mime="application/pdf",
+                use_container_width=True
+            )
+        except Exception as e:
+            st.error(f"Error al generar el reporte PDF: {e}")
     else:
-        st.warning("⚠️ No se encontraron registros catastrales que coincidan con los parámetros ingresados. Verifique la ortografía o códigos.")
+        st.warning("⚠️ No se tienen registros vinculados para el criterio ingresado. Verifique los datos.")
