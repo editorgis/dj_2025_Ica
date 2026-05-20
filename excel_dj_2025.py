@@ -41,7 +41,7 @@ columnas_especificas = {
 }
 
 # --- 5. FUNCIÓN DE CARGA CONTROLADA ---
-@st.cache_data(show_spinner="⏳ Sincronizando con la Base de Datos en la Nube...")
+@st.cache_data(show_spinner="⏳ Sincronizando con la Base de Datos")
 def cargar_datos_desde_drive(file_id):
     try:
         url = f'https://drive.google.com/uc?id={file_id}'
