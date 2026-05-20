@@ -47,15 +47,15 @@ def cargar_datos_desde_drive(file_id):
         url = f'https://drive.google.com/uc?id={file_id}'
         output = "archivo_local.xlsx"
         ruta_descarga = gdown.download(url, output, quiet=True)
-        if not ruta_descarga or not os.path.exists(output): return None, "Error de descarga"
         excel_reader = pd.ExcelFile(output, engine='openpyxl')
         datos = {h: pd.read_excel(output, sheet_name=h, engine='openpyxl', dtype=str).fillna("") for h in excel_reader.sheet_names}
         return datos, excel_reader.sheet_names
     except Exception as e: return None, str(e)
 
+# --- 6. LÓGICA DE PERSISTENCIA REAL ---
 if 'base_datos' not in st.session_state:
     datos, hojas = cargar_datos_desde_drive(ID_ARCHIVO_DRIVE)
-    if datos:
+    if datos is not None:
         st.session_state['base_datos'] = datos
         st.session_state['hojas'] = hojas
     else: st.error("Error al cargar"); st.stop()
@@ -69,12 +69,13 @@ st.markdown("<p style='text-align: center; color: #1E3A8A; font-weight: bold;'>�
 
 col_status, _, col_logout = st.columns([3, 4, 1])
 with col_status:
-    st.success("✅ Sincronizado correctamente con la Base de Datos")
+    st.success("✅ Sincronizado correctamente con la Base de Datos en la Nube")
 with col_logout:
     if st.button("🚪 Salir"): st.session_state['autenticado'] = False; st.rerun()
+
 st.write("---") 
 
-# --- 8. BUSCADOR ---
+# --- 8. BUSCADOR INTERACTIVO ---
 st.markdown("### 🔍 Panel de Consulta de Información Cadastral")
 modo = st.radio("Seleccione el criterio de búsqueda requerido:", ["1.- POR COD_CONTRIBUYENTE", "2.- POR COD_PREDIO", "3.- POR NOMBRE / RAZÓN SOCIAL", "4.- POR UBICACIÓN URBANA"], horizontal=True)
 st.markdown("---")
@@ -112,16 +113,18 @@ elif "4.- POR UBICACIÓN URBANA" in modo:
             codigos_amarre.update(df_pred[mask]['CODIGO'].str.strip().str.lstrip('0').unique())
             ejecutar_busqueda = True; valor_reporte = f"{urb}_{mz}_{lt}"
 
-# --- 9. PROCESAMIENTO (AMARRE POR CÓDIGO) ---
+# --- 9. PROCESAMIENTO Y FILTRADO MAESTRO ---
 if ejecutar_busqueda:
     total = 0
     for h in nombres_hojas:
         df = archivo_excel[h]
         if 'CODIGO' in df.columns:
+            # Filtro Maestro: Solo muestra lo que pertenece al amarre de la búsqueda
             res = df[df['CODIGO'].str.strip().str.lstrip('0').isin(codigos_amarre)]
             if not res.empty:
                 cols = [c for c in columnas_especificas.get(h, res.columns) if c in res.columns]
                 with st.expander(f"📋 Pestaña: {h}", expanded=True):
                     st.dataframe(res[cols], use_container_width=True)
                 total += len(res)
-    if total == 0: st.warning("No se encontraron registros vinculados.")
+    if total > 0: st.success(f"🔎 Cruce de datos exitoso. Registros vinculados: {total}")
+    else: st.warning("⚠️ No se encontraron registros vinculados.")
