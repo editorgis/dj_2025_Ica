@@ -24,7 +24,7 @@ if not st.session_state['autenticado']:
     
     st.write("---")
     
-    # Pantalla de Bloqueo con CANDADO DORADO
+    # Pantalla de Restricción
     st.markdown("<h2 style='text-align: center; color: #1E3A8A;'>🔐 ACCESO RESTRINGIDO</h2>", unsafe_allow_html=True)
     
     _, col_login, _ = st.columns([1, 1, 1])
@@ -56,14 +56,13 @@ def cargar_datos_desde_drive(file_id):
         excel_reader = pd.ExcelFile(output, engine='openpyxl')
         nombres_hojas = excel_reader.sheet_names
         
-        # Cargamos y estandarizamos inmediatamente los textos para evitar fallas de cruces
         datos = {}
         for hoja in nombres_hojas:
-            df_hoha = pd.read_excel(output, sheet_name=hoja, engine='openpyxl', dtype=str).fillna("")
-            # Limpieza ejecutiva de strings en todas las columnas del dataframe
-            for col in df_hoha.columns:
-                df_hoha[col] = df_hoha[col].astype(str).str.strip()
-            datos[hoja] = df_hoha
+            df_hoja = pd.read_excel(output, sheet_name=hoja, engine='openpyxl', dtype=str).fillna("")
+            # Estandarización exhaustiva de espacios en blanco
+            for col in df_hoja.columns:
+                df_hoja[col] = df_hoja[col].astype(str).str.strip()
+            datos[hoja] = df_hoja
             
         return datos, nombres_hojas
     except Exception as e:
@@ -82,7 +81,7 @@ if 'base_datos' not in st.session_state:
 archivo_excel = st.session_state['base_datos']
 nombres_hojas = st.session_state['hojas']
 
-# --- 7. INTERFAZ VISUAL (DENTRO DEL SISTEMA) ---
+# --- 7. INTERFAZ VISUAL PRINCIPAL ---
 st.markdown("<h1 style='text-align: center; color: #1E3A8A;'>🏛️ SISTEMA DE CONSULTA RÁPIDA DECLARACIÓN JURADA 2025 - ICA</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center; color: #1E3A8A; font-weight: bold;'>🚫 AVISO: Este sistema contiene información reservada. Está prohibido el acceso no autorizado bajo denuncia de la Ley No. 29733 Protección de Datos</p>", unsafe_allow_html=True)
 
@@ -96,9 +95,7 @@ with col_logout:
 
 st.write("---") 
 
-# =============================================================================
-# --- 8. NUEVO BUSCADOR INTERACTIVO AVANZADO (DISEÑO PROFESIONAL) ---
-# =============================================================================
+# --- 8. BUSCADOR INTERACTIVO CON ENFOQUE DE PRELACIÓN ---
 st.markdown("### 🔍 Panel de Consulta de Información Cadastral")
 
 modo = st.radio(
@@ -114,11 +111,12 @@ modo = st.radio(
 
 st.markdown("---")
 
-# Inicialización de flags y variables de búsqueda cruzada
+# Estructuras de control para el amarre estricto
 codigos_contribuyente_encontrados = set()
 codigos_predio_encontrados = set()
 ejecutar_busqueda = False
-valor_reporte = "" # Para el nombre del archivo PDF
+valor_reporte = ""
+resultados = {}
 
 # -----------------------------------------------------------------------------
 # CRITERIO 1: POR CÓDIGO DE CONTRIBUYENTE
@@ -143,7 +141,7 @@ elif "2.- POR COD_PREDIO" in modo:
         ejecutar_busqueda = True
 
 # -----------------------------------------------------------------------------
-# CRITERIO 3: POR NOMBRE / RAZÓN SOCIAL (Búsqueda inteligente por palabras)
+# CRITERIO 3: POR NOMBRE / RAZÓN SOCIAL
 # -----------------------------------------------------------------------------
 elif "3.- POR NOMBRE / RAZÓN SOCIAL" in modo:
     valor = st.text_input("Ingrese Nombre, Apellidos o Razón Social (Búsqueda Parcial):", placeholder="Ej. LUIS ALBERTO SANCHEZ").upper().strip()
@@ -151,7 +149,6 @@ elif "3.- POR NOMBRE / RAZÓN SOCIAL" in modo:
         df_cont = archivo_excel.get('Contribuyente')
         if df_cont is not None and 'Nombre' in df_cont.columns and 'CODIGO' in df_cont.columns:
             palabras_clave = valor.split()
-            # Valida que el registro contenga todas las palabras ingresadas sin importar el orden
             mask = df_cont['Nombre'].str.upper().apply(lambda x: all(palabra in str(x) for palabra in palabras_clave))
             cods = df_cont[mask]['CODIGO'].str.strip().str.lstrip('0').unique()
             codigos_contribuyente_encontrados.update(cods)
@@ -159,90 +156,93 @@ elif "3.- POR NOMBRE / RAZÓN SOCIAL" in modo:
             ejecutar_busqueda = True
 
 # -----------------------------------------------------------------------------
-# CRITERIO 4: POR UBICACIÓN URBANA (Menú unificado con 3 entradas independientes)
+# CRITERIO 4: POR UBICACIÓN URBANA (PRELACIÓN DE PREDIO -> FILTRA TODO POR 'CODIGO')
 # -----------------------------------------------------------------------------
 elif "4.- POR UBICACIÓN URBANA" in modo:
     st.markdown("##### 📍 Ingrese los parámetros de Ubicación Territorial")
     col_urb, col_mz, col_lt = st.columns([4, 2, 2])
     
     with col_urb:
-        urb_ingresada = st.text_input("URB (JUNTA / URBANIZACIÓN):", placeholder="Ej. SAN ISIDRO").upper().strip()
+        urb_ingresada = st.text_input("URB (JUNTA / URBANIZACIÓN):", placeholder="Ej. CERCADO DE ICA").upper().strip()
     with col_mz:
-        mz_ingresada = st.text_input("MZ (MANZANA):", placeholder="Ej. A").upper().strip()
+        mz_ingresada = st.text_input("MZ (MANZANA):", placeholder="Ej. D").upper().strip()
     with col_lt:
-        lote_ingresado = st.text_input("LOTE:", placeholder="Ej. 15").upper().strip()
+        lote_ingresado = st.text_input("LOTE:", placeholder="Ej. 11").upper().strip()
         
     if urb_ingresada:
-        # 1. Buscar en la pestaña 'Contribuyente' por campo Junta
-        df_cont = archivo_excel.get('Contribuyente')
-        if df_cont is not None and 'Junta' in df_cont.columns and 'CODIGO' in df_cont.columns:
-            mask_cont = df_cont['Junta'].str.upper().str.contains(urb_ingresada, na=False)
-            codigos_contribuyente_encontrados.update(df_cont[mask_cont]['CODIGO'].str.strip().str.lstrip('0').unique())
-        
-        # 2. Buscar en la pestaña 'Predios' cruzando Urb (Junta), Mz y Lote
         df_pred = archivo_excel.get('Predios')
         if df_pred is not None:
+            # PASO 1: Filtrar EXCLUSIVAMENTE en la pestaña de Predios
             mask_pred = df_pred['Junta'].str.upper().str.contains(urb_ingresada, na=False)
-            
             if mz_ingresada:
                 mask_pred = mask_pred & (df_pred['NUM_MANZ'].str.lstrip('0') == mz_ingresada.lstrip('0'))
             if lote_ingresado:
                 mask_pred = mask_pred & (df_pred['NUM_LOTE'].str.lstrip('0') == lote_ingresado.lstrip('0'))
-                
-            cods_p = df_pred[mask_pred]['COD_PRED'].str.strip().str.lstrip('0').unique()
-            codigos_predio_encontrados.update(cods_p)
             
-            # También arrastramos los códigos de contribuyente vinculados a estos predios para amarrar la cascada
-            if 'CODIGO' in df_pred.columns:
-                cods_c = df_pred[mask_pred]['CODIGO'].str.strip().str.lstrip('0').unique()
-                codigos_contribuyente_encontrados.update(cods_c)
-                
+            df_pred_filtrado = df_pred[mask_pred]
+            
+            if not df_pred_filtrado.empty:
+                # PASO 2: Extraer de manera obligatoria el campo 'CODIGO' de la fila de Predio encontrada
+                if 'CODIGO' in df_pred_filtrado.columns:
+                    cods_c = df_pred_filtrado['CODIGO'].str.strip().str.lstrip('0').unique()
+                    cods_c = [c for c in cods_c if c != ""]
+                    
+                    # Guardamos este registro como el único AMARRE para las demás pestañas
+                    codigos_contribuyente_encontrados.update(cods_c)
+        
         valor_reporte = f"{urb_ingresada}_MZ_{mz_ingresada}_LT_{lote_ingresado}"
         ejecutar_busqueda = True
     else:
         st.info("💡 Por favor, ingrese al menos el nombre de la **Urbanización / Junta** para delimitar el ámbito geográfico.")
 
-# --- PROCESAMIENTO Y CRUCE MULTI-PESTAÑA EN CASCADA ---
+# =============================================================================
+# --- FASE DE PROCESAMIENTO GENERAL CON FILTRADO EN CASCADA ---
+# =============================================================================
 if ejecutar_busqueda:
-    resultados = {}
     total = 0
     
-    if codigos_contribuyente_encontrados or codigos_predio_encontrados:
+    # Si logramos extraer la llave de amarre ('CODIGO'), esta comanda la prelación en TODAS las pestañas
+    if codigos_contribuyente_encontrados:
         for h in nombres_hojas:
             df = archivo_excel[h]
-            
             col_id_contribuyente = next((c for c in df.columns if c.upper() == 'CODIGO'), None)
+            
+            if col_id_contribuyente:
+                # Se filtra cada pestaña obligatoriamente por el 'CODIGO' derivado del predio
+                mask_final = df[col_id_contribuyente].str.strip().str.lstrip('0').isin(codigos_contribuyente_encontrados)
+                res = df[mask_final]
+                
+                if not res.empty:
+                    cols = [c for c in columnas_especificas.get(h, res.columns) if c in res.columns]
+                    resultados[h] = res[cols]
+                    total += len(res)
+                    
+    # Lógica de contingencia secundaria en caso se busque directamente por Código de Predio (Criterio 2)
+    elif codigos_predio_encontrados:
+        for h in nombres_hojas:
+            df = archivo_excel[h]
             col_id_predio = next((c for c in df.columns if c.upper() == 'COD_PRED'), None)
             
-            mask_final = pd.Series(False, index=df.index)
-            
-            if col_id_contribuyente and codigos_contribuyente_encontrados:
-                mask_final |= df[col_id_contribuyente].str.strip().str.lstrip('0').isin(codigos_contribuyente_encontrados)
+            if col_id_predio:
+                mask_final = df[col_id_predio].str.strip().str.lstrip('0').isin(codigos_predio_encontrados)
+                res = df[mask_final]
                 
-            if col_id_predio and codigos_predio_encontrados:
-                mask_final |= df[col_id_predio].str.strip().str.lstrip('0').isin(codigos_predio_encontrados)
-            
-            res = df[mask_final]
-            if not res.empty:
-                cols = [c for c in columnas_especificas.get(h, res.columns) if c in res.columns]
-                resultados[h] = res[cols]
-                total += len(res)
+                if not res.empty:
+                    cols = [c for c in columnas_especificas.get(h, res.columns) if c in res.columns]
+                    resultados[h] = res[cols]
+                    total += len(res)
 
-    # --- DESPLIEGUE FINAL DE RESULTADOS CORPORATIVOS ---
+    # --- DESPLIEGUE FINAL DE TABLAS EN PANTALLA ---
     if total > 0:
-        st.success(f"🔎 Cruce de datos exitoso. Registros encontrados en cascada: {total}")
+        st.success(f"🔎 Cruce de datos exitoso. Registros vinculados en cascada: {total}")
         
-        # Bloque de llaves vinculadas en la cabecera
-        if codigos_contribuyente_encontrados and "1" not in modo:
-            st.info(f"🔑 **Contribuyentes vinculados:** {', '.join(list(codigos_contribuyente_encontrados)[:10])} {'...' if len(codigos_contribuyente_encontrados) > 10 else ''}")
-        if codigos_predio_encontrados and "2" not in modo:
-            st.info(f"🏠 **Predios vinculados:** {', '.join(list(codigos_predio_encontrados)[:10])} {'...' if len(codigos_predio_encontrados) > 10 else ''}")
-
-        for h, d in resultados.items():
-            with st.expander(f"📋 Pestaña: {h}", expanded=True):
-                st.dataframe(d, use_container_width=True)
+        # Despliegue ordenado respetando la prelación natural de la base de datos catastral
+        for h in nombres_hojas:
+            if h in resultados:
+                with st.expander(f"📋 Pestaña: {h}", expanded=True):
+                    st.dataframe(resultados[h], use_container_width=True)
         
-        # --- GENERACIÓN DE REPORTE PDF ---
+        # --- GENERACIÓN COMPATIBLE DE REPORTE PDF ---
         try:
             pdf = FPDF(orientation='L', unit='mm', format='A4')
             pdf.add_page()
@@ -262,4 +262,4 @@ if ejecutar_busqueda:
         except Exception as e:
             st.error(f"Error al generar el reporte PDF: {e}")
     else:
-        st.warning("⚠️ No se tienen registros vinculados para el criterio ingresado. Verifique los datos.")
+        st.warning("⚠️ No se tienen registros vinculados para el criterio ingresado. Revise los parámetros.")
