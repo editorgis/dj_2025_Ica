@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 from fpdf import FPDF
 import gdown
-from datetime import datetime
+import os
 
 # --- 1. CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="Sistema de Consulta Rápida Declaracion Jurada 2025 - ICA demo.v1", page_icon="🏛️", layout="wide")
@@ -16,15 +16,9 @@ if 'autenticado' not in st.session_state:
     st.session_state['autenticado'] = False
 
 if not st.session_state['autenticado']:
-    # Título Principal
     st.markdown("<h1 style='text-align: center; color: #1E3A8A;'>🏛️ SISTEMA DE CONSULTA RÁPIDA DECLARACIÓN JURADA 2025 - ICA demo.v1</h1>", unsafe_allow_html=True)
-    
-    # SUBTÍTULO DE AVISO LEGAL
     st.markdown("<p style='text-align: center; color: #1E3A8A; font-weight: bold;'>🚫 AVISO: Este sistema contiene información reservada. Está prohibido el acceso no autorizado bajo denuncia de la Ley No. 29733 Protección de Datos.</p>", unsafe_allow_html=True)
-    
     st.write("---")
-    
-    # Pantalla de Restricción
     st.markdown("<h2 style='text-align: center; color: #1E3A8A;'>🔐 ACCESO RESTRINGIDO</h2>", unsafe_allow_html=True)
     
     _, col_login, _ = st.columns([1, 1, 1])
@@ -46,20 +40,25 @@ columnas_especificas = {
     'Instalaciones': ['CODIGO', 'COD_PRED', 'Descripcion', 'MES_CONS', 'ANO_CONS', 'ANNO_ANTIG', 'CANTIDAD', 'VAL_INSTALAC', 'UNI_MEDIDA']
 }
 
-# --- 5. FUNCIÓN DE CARGA ---
-@st.cache_data(show_spinner="⏳ Sincronizando con la Base de Datos...")
+# --- 5. FUNCIÓN DE CARGA CONTROLADA ---
+@st.cache_data(show_spinner="⏳ Sincronizando con la Base de Datos en la Nube...")
 def cargar_datos_desde_drive(file_id):
     try:
         url = f'https://drive.google.com/uc?id={file_id}'
         output = "archivo_local.xlsx"
-        gdown.download(url, output, quiet=True)
+        
+        # Descarga física del archivo
+        ruta_descarga = gdown.download(url, output, quiet=True)
+        
+        if not ruta_descarga or not os.path.exists(output):
+            return None, "No se pudo descargar el archivo desde Google Drive. Verifique los permisos para 'Cualquier persona con el enlace'."
+            
         excel_reader = pd.ExcelFile(output, engine='openpyxl')
         nombres_hojas = excel_reader.sheet_names
         
         datos = {}
         for hoja in nombres_hojas:
             df_hoja = pd.read_excel(output, sheet_name=hoja, engine='openpyxl', dtype=str).fillna("")
-            # Estandarización exhaustiva de espacios en blanco
             for col in df_hoja.columns:
                 df_hoja[col] = df_hoja[col].astype(str).str.strip()
             datos[hoja] = df_hoja
@@ -68,20 +67,21 @@ def cargar_datos_desde_drive(file_id):
     except Exception as e:
         return None, str(e)
 
-# --- 6. LÓGICA DE PERSISTENCIA ---
+# --- 6. LÓGICA DE PERSISTENCIA REAL ---
 if 'base_datos' not in st.session_state:
     datos, hojas = cargar_datos_desde_drive(ID_ARCHIVO_DRIVE)
-    if datos is not None:
+    if datos is not None and isinstance(datos, dict):
         st.session_state['base_datos'] = datos
         st.session_state['hojas'] = hojas
     else:
-        st.error(f"Error de conexión con Google Drive: {hojas}")
+        st.error(f"🛑 ERROR CRÍTICO AL CARGAR LA BASE DE DATOS: {hojas}")
+        st.info("💡 Verifique que el archivo Excel en Google Drive tenga los accesos generales como 'Lector' para cualquier persona con el vínculo.")
         st.stop()
 
 archivo_excel = st.session_state['base_datos']
 nombres_hojas = st.session_state['hojas']
 
-# --- 7. INTERFAZ VISUAL PRINCIPAL ---
+# --- 7. INTERFAZ VISUAL ---
 st.markdown("<h1 style='text-align: center; color: #1E3A8A;'>🏛️ SISTEMA DE CONSULTA RÁPIDA DECLARACIÓN JURADA 2025 - ICA</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center; color: #1E3A8A; font-weight: bold;'>🚫 AVISO: Este sistema contiene información reservada. Está prohibido el acceso no autorizado bajo denuncia de la Ley No. 29733 Protección de Datos</p>", unsafe_allow_html=True)
 
@@ -95,7 +95,7 @@ with col_logout:
 
 st.write("---") 
 
-# --- 8. BUSCADOR INTERACTIVO CON ENFOQUE DE PRELACIÓN ---
+# --- 8. BUSCADOR INTERACTIVO AVANZADO CON AMARRE DE PRELACIÓN ---
 st.markdown("### 🔍 Panel de Consulta de Información Cadastral")
 
 modo = st.radio(
@@ -111,7 +111,7 @@ modo = st.radio(
 
 st.markdown("---")
 
-# Estructuras de control para el amarre estricto
+# Estructuras de control para el acoplamiento estricto de registros
 codigos_contribuyente_encontrados = set()
 codigos_predio_encontrados = set()
 ejecutar_busqueda = False
@@ -141,22 +141,33 @@ elif "2.- POR COD_PREDIO" in modo:
         ejecutar_busqueda = True
 
 # -----------------------------------------------------------------------------
-# CRITERIO 3: POR NOMBRE / RAZÓN SOCIAL
+# CRITERIO 3: POR NOMBRE / RAZÓN SOCIAL (Filtro exclusivo en Contribuyente -> Código)
 # -----------------------------------------------------------------------------
 elif "3.- POR NOMBRE / RAZÓN SOCIAL" in modo:
-    valor = st.text_input("Ingrese Nombre, Apellidos o Razón Social (Búsqueda Parcial):", placeholder="Ej. LUIS ALBERTO SANCHEZ").upper().strip()
+    valor = st.text_input("Ingrese Nombre, Apellidos o Razón Social (Búsqueda Parcial):", placeholder="Ej. QUISPE").upper().strip()
     if valor:
         df_cont = archivo_excel.get('Contribuyente')
         if df_cont is not None and 'Nombre' in df_cont.columns and 'CODIGO' in df_cont.columns:
-            palabras_clave = valor.split()
-            mask = df_cont['Nombre'].str.upper().apply(lambda x: all(palabra in str(x) for palabra in palabras_clave))
-            cods = df_cont[mask]['CODIGO'].str.strip().str.lstrip('0').unique()
-            codigos_contribuyente_encontrados.update(cods)
-            valor_reporte = valor
-            ejecutar_busqueda = True
+            
+            # Divide la entrada admitiendo desde una sola palabra en adelante de forma segura
+            palabras_clave = [p for p in valor.split() if p.strip() != ""]
+            
+            if palabras_clave:
+                # Comprobación estricta de palabras clave en el campo de nombres
+                mask_nombre = df_cont['Nombre'].str.upper().apply(lambda x: all(palabra in str(x) for palabra in palabras_clave))
+                df_cont_filtrado = df_cont[mask_nombre]
+                
+                if not df_cont_filtrado.empty:
+                    # Extrae el código del contribuyente que servirá de amarre maestro
+                    cods = df_cont_filtrado['CODIGO'].str.strip().str.lstrip('0').unique()
+                    cods = [c for c in cods if c != ""]
+                    codigos_contribuyente_encontrados.update(cods)
+                
+        valor_reporte = valor
+        ejecutar_busqueda = True
 
 # -----------------------------------------------------------------------------
-# CRITERIO 4: POR UBICACIÓN URBANA (PRELACIÓN DE PREDIO -> FILTRA TODO POR 'CODIGO')
+# CRITERIO 4: POR UBICACIÓN URBANA (Filtro exclusivo en Predios -> Código)
 # -----------------------------------------------------------------------------
 elif "4.- POR UBICACIÓN URBANA" in modo:
     st.markdown("##### 📍 Ingrese los parámetros de Ubicación Territorial")
@@ -172,7 +183,7 @@ elif "4.- POR UBICACIÓN URBANA" in modo:
     if urb_ingresada:
         df_pred = archivo_excel.get('Predios')
         if df_pred is not None:
-            # PASO 1: Filtrar EXCLUSIVAMENTE en la pestaña de Predios
+            # Búsqueda inicial aislada en la pestaña Predios
             mask_pred = df_pred['Junta'].str.upper().str.contains(urb_ingresada, na=False)
             if mz_ingresada:
                 mask_pred = mask_pred & (df_pred['NUM_MANZ'].str.lstrip('0') == mz_ingresada.lstrip('0'))
@@ -182,12 +193,12 @@ elif "4.- POR UBICACIÓN URBANA" in modo:
             df_pred_filtrado = df_pred[mask_pred]
             
             if not df_pred_filtrado.empty:
-                # PASO 2: Extraer de manera obligatoria el campo 'CODIGO' de la fila de Predio encontrada
+                # Extrae el campo 'CODIGO' de la fila de la dirección encontrada
                 if 'CODIGO' in df_pred_filtrado.columns:
                     cods_c = df_pred_filtrado['CODIGO'].str.strip().str.lstrip('0').unique()
                     cods_c = [c for c in cods_c if c != ""]
                     
-                    # Guardamos este registro como el único AMARRE para las demás pestañas
+                    # Guardamos este código de contribuyente para encadenar las demás pestañas
                     codigos_contribuyente_encontrados.update(cods_c)
         
         valor_reporte = f"{urb_ingresada}_MZ_{mz_ingresada}_LT_{lote_ingresado}"
@@ -208,7 +219,7 @@ if ejecutar_busqueda:
             col_id_contribuyente = next((c for c in df.columns if c.upper() == 'CODIGO'), None)
             
             if col_id_contribuyente:
-                # Se filtra cada pestaña obligatoriamente por el 'CODIGO' derivado del predio
+                # Se filtra cada pestaña obligatoriamente por el 'CODIGO' derivado del predio o contribuyente
                 mask_final = df[col_id_contribuyente].str.strip().str.lstrip('0').isin(codigos_contribuyente_encontrados)
                 res = df[mask_final]
                 
@@ -262,4 +273,4 @@ if ejecutar_busqueda:
         except Exception as e:
             st.error(f"Error al generar el reporte PDF: {e}")
     else:
-        st.warning("⚠️ No se tienen registros vinculados para el criterio ingresado. Revise los parámetros.")
+        st.warning("⚠️ No se encontraron registros vinculados para el criterio ingresado. Revise los parámetros.")
