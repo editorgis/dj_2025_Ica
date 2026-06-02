@@ -76,7 +76,7 @@ with col_logout:
 st.write("---") 
 
 # --- 8. BUSCADOR INTERACTIVO ---
-st.markdown("### 🔍 Panel de Consulta de Información Cadastral")
+st.markdown("### 🔍 Panel de Consulta de Información DJ Municipal")
 modo = st.radio("Seleccione el criterio de búsqueda requerido:", ["1.- POR COD_CONTRIBUYENTE", "2.- POR COD_PREDIO", "3.- POR NOMBRE / RAZÓN SOCIAL", "4.- POR UBICACIÓN URBANA"], horizontal=True)
 st.markdown("---")
 
