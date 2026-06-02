@@ -69,7 +69,7 @@ st.markdown("<p style='text-align: center; color: #1E3A8A; font-weight: bold;'>�
 
 col_status, _, col_logout = st.columns([3, 4, 1])
 with col_status:
-    st.success("✅ Sincronizado correctamente con la Base de Datos en la Nube")
+    st.success("✅ Sincronizado correctamente con la Base de Datos 2025 ")
 with col_logout:
     if st.button("🚪 Salir"): st.session_state['autenticado'] = False; st.rerun()
 
